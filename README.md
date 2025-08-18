@@ -22,17 +22,17 @@ In [Multi-Agent Systems with AutoGen](https://mng.bz/eVP9), you will learn about
 
 ### Useful Links
 
-- Link to official [source code on GiHub](https://github.com/victordibia/multiagent-systems-with-autogen)
+- Link to official [source code on GiHub](https://github.com/victordibia/designing-multiagent-systems)
 - Link to book on [Manning.com](https://mng.bz/eVP9)
 - Link to book website (interactive demos, about authors etc) - https://multiagentbook.com/
 
 > [!NOTE]
-> If you downloaded the code bundle from the Manning website, please consider visiting the official code repository on GitHub at https://github.com/victordibia/multiagent-systems-with-autogen for the latest updates.
+> If you downloaded the code bundle from the Manning website, please consider visiting the official code repository on GitHub at https://github.com/victordibia/designing-multiagent-systems for the latest updates.
 
-To download a copy of this code repository, click on the [Download Zip](https://github.com/victordibia/multiagent-systems-with-autogen/archive/refs/heads/main.zip) button or run the following code from your terminal.
+To download a copy of this code repository, click on the [Download Zip](https://github.com/victordibia/designing-multiagent-systems/archive/refs/heads/main.zip) button or run the following code from your terminal.
 
 ```bash
-git clone --depth 1 https https://github.com/victordibia/multiagent-systems-with-autogen.git
+git clone --depth 1 https https://github.com/victordibia/designing-multiagent-systems.git
 ```
 
 ## Getting Jupyter Notebooks to work on your computer
@@ -40,8 +40,8 @@ git clone --depth 1 https https://github.com/victordibia/multiagent-systems-with
 This section explains how to install the pre-requisite libraries so that you can use the notebooks within this book. So that the libraries are safely installed for the context of this book, we use the python [virtual environment](https://docs.python.org/3/library/venv.html) concept.
 
 1. [Install](https://www.python.org/downloads/) Python on your computer. Recommended versions are 3.9 through 3.12
-2. Clone the repository: `git clone https://github.com/victordibia/multiagent-systems-with-autogen.git`
-3. Go into the directory: `cd multiagent-systems-with-autogen`
+2. Clone the repository: `git clone https://github.com/victordibia/designing-multiagent-systems.git`
+3. Go into the directory: `cd designing-multiagent-systems`
 4. Create a virtual environment: `python -m venv venv`
 5. Activate the virtual environment: `. ./venv/bin/activate`
 6. Install the required libraries into this environment: `pip install -r requirements.txt`
@@ -83,6 +83,6 @@ If you find this book or code useful for your research, please consider citing i
   year         = {2024},
   isbn         = {9781633436145},
   url          = {https://www.manning.com/books/multi-agent-systems-with-autogen},
-  github       = {https://github.com/victordibia/multiagent-systems-with-autogen}
+  github       = {https://github.com/victordibia/designing-multiagent-systems}
 }
 ```

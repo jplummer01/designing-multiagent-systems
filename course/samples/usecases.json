@@ -1,9 +1,9 @@
 {
   "repository": {
     "owner": "victordibia",
-    "name": "multiagent-systems-with-autogen",
+    "name": "designing-multiagent-systems",
     "branch": "main",
-    "base_url": "https://raw.githubusercontent.com/victordibia/multiagent-systems-with-autogen/refs/heads/main/course/"
+    "base_url": "https://raw.githubusercontent.com/victordibia/designing-multiagent-systems/refs/heads/main/course/"
   },
   "usecases": {
     "rag_agent": {
@@ -25,7 +25,7 @@
             "path": "/samples/rag_agent/autogen_agentchat/app.py",
             "language": "python",
             "loc": 32,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/rag_agent/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/rag_agent/autogen_agentchat/app.py",
             "metadata": {
               "title": "RAG Agents",
               "description": "Retrieval Augmented Generation (RAG) explores the use of external knowledge sources to improve the quality of generated text from a model. External knowlege may come from providing an agent with access to tools that it can intelligently call based on the task, or explicitly retrieving relevant context from a datastore (e.g., a vector database) .",
@@ -65,7 +65,7 @@
             "path": "/samples/hello_world/autogen_agentchat/app.py",
             "language": "python",
             "loc": 33,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/autogen_agentchat/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the AutoGen AgentChat API",
@@ -92,7 +92,7 @@
             "path": "/samples/hello_world/autogen_core/app.py",
             "language": "python",
             "loc": 121,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/autogen_core/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/autogen_core/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the AutoGen Core API",
@@ -119,7 +119,7 @@
             "path": "/samples/hello_world/google_adk/app.py",
             "language": "python",
             "loc": 70,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/google_adk/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/google_adk/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the Google Agent Development Kit (ADK).",
@@ -146,7 +146,7 @@
             "path": "/samples/hello_world/langgraph/app.py",
             "language": "python",
             "loc": 76,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/langgraph/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/langgraph/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the LangGraph framework",
@@ -172,7 +172,7 @@
             "path": "/samples/hello_world/llama_index/app.py",
             "language": "python",
             "loc": 34,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/llama_index/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/llama_index/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the LlamaIndex framework",
@@ -199,7 +199,7 @@
             "path": "/samples/hello_world/openai_agents/app.py",
             "language": "python",
             "loc": 46,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/openai_agents/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/openai_agents/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the OpenAI Agents SDK API",
@@ -226,7 +226,7 @@
             "path": "/samples/hello_world/pydanticai/app.py",
             "language": "python",
             "loc": 57,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/pydanticai/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/pydanticai/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the Pydantic AI SDK",
@@ -253,7 +253,7 @@
             "path": "/samples/hello_world/semantic_kernel/app.py",
             "language": "python",
             "loc": 48,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/hello_world/semantic_kernel/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/semantic_kernel/app.py",
             "metadata": {
               "title": "Hello World Agent",
               "description": "Built using the Semantic Kernel framework",
@@ -296,7 +296,7 @@
             "path": "/samples/mcp_server_101/mcp/app.py",
             "language": "python",
             "loc": 121,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/mcp_server_101/mcp/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/mcp_server_101/mcp/app.py",
             "metadata": {
               "title": "MCP Server 101",
               "description": "Learn to build your first MCP client and server using streamable HTTP transport. Includes a TechCrunch news server, simple client, and complete host application with OpenAI integration. Demonstrates configurable host/port settings and real-time streaming communication.",
@@ -338,7 +338,7 @@
             "path": "/samples/voice_agent/autogen_agentchat/app.py",
             "language": "python",
             "loc": 421,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/voice_agent/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/voice_agent/autogen_agentchat/app.py",
             "metadata": {
               "title": "Voice Agents",
               "description": "An implementation of a voice enabled multi-agent system where speech to text models are used to transcribe user queries and text to speech models are used to read out a summarized version of agent responses. .",
@@ -377,7 +377,7 @@
             "path": "/samples/router_pattern/autogen_core/app.py",
             "language": "python",
             "loc": 163,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/router_pattern/autogen_core/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/router_pattern/autogen_core/app.py",
             "metadata": {
               "title": "Router Pattern",
               "description": "A mock implementation of a Sales Multi-Agent System using a Router Pattern. A Router Agent receives user messages and routes them to specialized agents - LeadQualificationAgent, QuotationAgent, ProductInfoAgent, and SalesFollowupAgent.",
@@ -416,7 +416,7 @@
             "path": "/samples/interface_agent/autogen_agentchat/app.py",
             "language": "python",
             "loc": 40,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/interface_agent/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/interface_agent/autogen_agentchat/app.py",
             "metadata": {
               "title": "Browser Interface Agents",
               "description": "Built using the AutoGen AgentChat API, includes 3 agents - a WebSurfer agent that addresses tasks by controlling/driving a web browser, an AssistantAgent that verifies progress and a UserAgent that will request human feedback when necessary.",
@@ -455,7 +455,7 @@
             "path": "/samples/deep_research/autogen_agentchat/app.py",
             "language": "python",
             "loc": 89,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/deep_research/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/deep_research/autogen_agentchat/app.py",
             "metadata": {
               "title": "Deep Research Agents",
               "description": "An implementation of a multi-agent system that explores multiple reasoning steps across multiple data sources to synthesize results to complex research tasks. Implemented using an AssistantAgent that performs web searches and analyzes information, a Verifier agent that ensures research quality and completeness, a Summary agent that provides detailed markdown summaries, and a SelectorGroupChat team that manages the order in which each agent acts based on conversation context.",
@@ -496,7 +496,7 @@
             "path": "/samples/travel_planning/autogen_agentchat/app.py",
             "language": "python",
             "loc": 121,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/travel_planning/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/travel_planning/autogen_agentchat/app.py",
             "metadata": {
               "title": "Travel Planning Agents",
               "description": "An implementation of a multi-agent system that creates personalized travel itineraries through a coordinated planning process. Implemented using a Planner Agent that develops comprehensive travel routes based on traveler preferences, a Local Agent that recommends authentic experiences and hidden gems, a Language Agent that provides essential communication tips for the destination, and a Travel Summary Agent that integrates all recommendations into a cohesive final itinerary. The system uses a SelectorGroupChat team that manages the workflow between agents to progressively build comprehensive travel plans while minimizing unnecessary user involvement.",
@@ -536,7 +536,7 @@
             "path": "/samples/mcp_tools/autogen_agentchat/app.py",
             "language": "python",
             "loc": 25,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/mcp_tools/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/mcp_tools/autogen_agentchat/app.py",
             "metadata": {
               "title": "MCP Tool Agent",
               "description": "An implementation demonstrating how to integrate Model Context Protocol (MCP) servers with AutoGen agents. This example shows how to connect an agent to an MCP server for fetching web resources, enabling content summarization and analysis. You can extend it to any MCP server.",
@@ -574,7 +574,7 @@
             "path": "/samples/book_generator/autogen_core/app.py",
             "language": "python",
             "loc": 141,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/book_generator/autogen_core/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/book_generator/autogen_core/app.py",
             "metadata": {
               "title": "Book Generator with Gemini 2.0",
               "description": "Built using the AutoGen Core API. ",
@@ -611,7 +611,7 @@
             "path": "/samples/investment_agent/autogen_agentchat/app.py",
             "language": "python",
             "loc": 169,
-            "githubUrl": "https://github.com/victordibia/multiagent-systems-with-autogen/blob/main/course/samples/investment_agent/autogen_agentchat/app.py",
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/investment_agent/autogen_agentchat/app.py",
             "metadata": {
               "title": "Investment Advisory Agents",
               "description": "An implementation of a multi-agent system that creates personalized investment portfolios through a coordinated research and analysis process. Implemented using a Client Profiler Agent that analyzes client requirements, a Research Strategy Agent that crafts targeted search queries, a Research Agent that performs market research and data analysis, a Portfolio Constructor that builds recommendations, a Verifier agent that ensures compliance and suitability, and a Summary agent that generates a complete investment proposal. The system uses a SelectorGroupChat team that manages the workflow between agents to progressively build comprehensive investment recommendations.",

@@ -13,9 +13,9 @@ def generate_usecases_json(samples_path):
     # Repository info
     repo_info = {
         "owner": "victordibia",
-        "name": "multiagent-systems-with-autogen",
+        "name": "designing-multiagent-systems",
         "branch": "main",
-        "base_url": "https://raw.githubusercontent.com/victordibia/multiagent-systems-with-autogen/refs/heads/main/course/"
+        "base_url": "https://raw.githubusercontent.com/victordibia/designing-multiagent-systems/refs/heads/main/course/"
     }
     
     # Construct GitHub repository URL - now includes /course prefix
