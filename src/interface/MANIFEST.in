@@ -1,5 +1,0 @@
-recursive-exclude  notebooks *
-
-recursive-exclude  frontend *
-recursive-exclude  docs *
-recursive-exclude  tests *
