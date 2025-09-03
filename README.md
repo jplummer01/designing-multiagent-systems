@@ -28,20 +28,20 @@ The book is organized across 4 parts, taking you from theory to production:
 
 ### Part I: Foundations of Multi-Agent Systems
 
-| Chapter  | Title                             | Code | Learning Outcome                                         |
-| -------- | --------------------------------- | ---- | -------------------------------------------------------- |
-| **Ch 1** | Understanding Multi-Agent Systems | -    | Understand when multi-agent systems are needed           |
-| **Ch 2** | Multi-Agent Patterns              | -    | Master coordination strategies (workflows vs autonomous) |
-| **Ch 3** | UX of Multi-Agent Systems         | -    | Build intuitive agent interfaces                         |
+| Chapter  | Title                                        | Code | Learning Outcome                                         |
+| -------- | -------------------------------------------- | ---- | -------------------------------------------------------- |
+| **Ch 1** | Understanding Multi-Agent Systems            | -    | Understand when multi-agent systems are needed           |
+| **Ch 2** | Multi-Agent Patterns                         | -    | Master coordination strategies (workflows vs autonomous) |
+| **Ch 3** | UX Design Principles for Multi-Agent Systems | -    | Build intuitive agent interfaces                         |
 
 ### Part II: Building Multi-Agent Systems from Scratch
 
-| Chapter  | Title                                | Code                                                         | Learning Outcome                            |
-| -------- | ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------- |
-| **Ch 4** | Building Your First Agent            | [`01_basic_agent.py`](picoagents/examples/01_basic_agent.py) | Create agents with reasoning, tools, memory |
-| **Ch 5** | Building Multi-Agent Workflows       | [`workflow/`](picoagents/workflow/)                          | Build deterministic multi-agent systems     |
-| **Ch 6** | Autonomous Multi-Agent Orchestration | [`orchestration/`](picoagents/orchestration/)                | Create adaptive agent coordination          |
-| **Ch 6** | Multi-Agent Frameworks               | -                                                            | Compare and evaluate existing frameworks    |
+| Chapter  | Title                                | Code                                                                                                                                                                                                                                    | Learning Outcome                                                                                                         |
+| -------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Ch 4** | Building Your First Agent            | [`picoagents.agent`](picoagents/src/picoagents/agents/_agent.py), [`01_basic_agent.py`](picoagents/examples/01_basic_agent.py)                                                                                                          | Create agents with reasoning, tools, memory                                                                              |
+| **Ch 5** | Building Multi-Agent Workflows       | [`picoagents.workflow/`](picoagents/src/picoagents/orchestration/workflow/)                                                                                                                                                             | Build deterministic multi-agent systems from scratch                                                                     |
+| **Ch 6** | Autonomous Multi-Agent Orchestration | [`picoagents.orchestration/`](picoagents/src/picoagents/orchestration/), [`02_roundrobin_orchestration.py`](picoagents/examples/02_roundrobin_orchestration.py), [`03_ai_orchestration.py`](picoagents/examples/03_ai_orchestration.py) | Implement autonomoous multi-agent patterns including GroupChat patterns, LLM and Plan Based Orchestration (Magentic One) |
+| **Ch 7** | Multi-Agent Frameworks               | -                                                                                                                                                                                                                                       | How to evaluate and choose the right multi-agent framework                                                               |
 
 ### Part III: Evaluating and Optimizing Multi-Agent Systems
 
@@ -77,6 +77,8 @@ export OPENAI_API_KEY="your-api-key-here"
 ```
 
 ### Quick Start: Your First Agent
+
+In this book, we will cover the fundamentals of building multi-agent systems, and incrementally build up the `Agents` abstractions shown below:
 
 ```python
 from picoagents import Agent, OpenAIChatCompletionClient
