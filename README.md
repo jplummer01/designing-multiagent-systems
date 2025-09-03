@@ -2,9 +2,14 @@
 
 Official code repository for **"Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"** by Victor Dibia.
 
-![Designing Multi-Agent Systems](../../../images/bookcover.png)
+![Designing Multi-Agent Systems](./docs/images/bookcover.png)
 
 Learn to build effective multi-agent systems from first principles (from scratch) through complete, tested implementations.
+
+Buy the book now:
+
+- Digital Edition - [Link](https://buy.multiagentbook.com)
+- Buy Print Edition on [Amazon - Coming Soon]()
 
 ## Why This Book & Code Repository?
 
@@ -23,31 +28,31 @@ The book is organized across 4 parts, taking you from theory to production:
 
 ### Part I: Foundations of Multi-Agent Systems
 
-| Chapter | Title | Code | Learning Outcome |
-|---------|-------|------|------------------|
-| **Ch 1** | Understanding Multi-Agent Systems | - | Understand when multi-agent systems are needed |
-| **Ch 2** | Multi-Agent Patterns | - | Master coordination strategies (workflows vs autonomous) |
-| **Ch 3** | UX of Multi-Agent Systems | - | Build intuitive agent interfaces |
+| Chapter  | Title                             | Code | Learning Outcome                                         |
+| -------- | --------------------------------- | ---- | -------------------------------------------------------- |
+| **Ch 1** | Understanding Multi-Agent Systems | -    | Understand when multi-agent systems are needed           |
+| **Ch 2** | Multi-Agent Patterns              | -    | Master coordination strategies (workflows vs autonomous) |
+| **Ch 3** | UX of Multi-Agent Systems         | -    | Build intuitive agent interfaces                         |
 
 ### Part II: Building Multi-Agent Systems from Scratch
 
-| Chapter | Title | Code | Learning Outcome |
-|---------|-------|------|------------------|
-| **Ch 4** | Building Your First Agent | [`01_basic_agent.py`](picoagents/examples/01_basic_agent.py) | Create agents with reasoning, tools, memory |
-| **Ch 5** | Building Multi-Agent Workflows | [`workflow/`](picoagents/workflow/) | Build deterministic multi-agent systems |
-| **Ch 6** | Autonomous Multi-Agent Orchestration | [`orchestration/`](picoagents/orchestration/) | Create adaptive agent coordination |
-| **Ch 6** | Multi-Agent Frameworks | - | Compare and evaluate existing frameworks |
+| Chapter  | Title                                | Code                                                         | Learning Outcome                            |
+| -------- | ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------- |
+| **Ch 4** | Building Your First Agent            | [`01_basic_agent.py`](picoagents/examples/01_basic_agent.py) | Create agents with reasoning, tools, memory |
+| **Ch 5** | Building Multi-Agent Workflows       | [`workflow/`](picoagents/workflow/)                          | Build deterministic multi-agent systems     |
+| **Ch 6** | Autonomous Multi-Agent Orchestration | [`orchestration/`](picoagents/orchestration/)                | Create adaptive agent coordination          |
+| **Ch 6** | Multi-Agent Frameworks               | -                                                            | Compare and evaluate existing frameworks    |
 
-### Part III: Evaluating and Optimizing Multi-Agent Systems  
+### Part III: Evaluating and Optimizing Multi-Agent Systems
 
-| Chapter | Title | Code | Learning Outcome |
-|---------|-------|------|------------------|
+| Chapter  | Title                          | Code                 | Learning Outcome                      |
+| -------- | ------------------------------ | -------------------- | ------------------------------------- |
 | **Ch 8** | Evaluating Multi-Agent Systems | Evaluation framework | Measure and improve agent performance |
 
 ### Part IV: Real-World Applications
 
-| Chapter | Title | Code | Learning Outcome |
-|---------|-------|------|------------------|
+| Chapter   | Title                                    | Code                | Learning Outcome                      |
+| --------- | ---------------------------------------- | ------------------- | ------------------------------------- |
 | **Ch 12** | Multi-Perspective Information Processing | Complete case study | Deploy production multi-agent systems |
 
 ## Getting Started
