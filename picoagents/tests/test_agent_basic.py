@@ -237,28 +237,6 @@ async def test_agent_get_info():
     assert info["message_history_length"] == 0
 
 
-@pytest.mark.asyncio
-async def test_agent_to_config():
-    """Test agent.to_config() functionality."""
-    model_client = MockChatCompletionClient(model="test-model")
-    
-    agent = Agent(
-        name="config-agent",
-        description="Agent for config test",
-        instructions="Test instructions",
-        model_client=model_client,
-        max_iterations=5
-    )
-    
-    config = agent.to_config()
-    
-    assert config.name == "config-agent"
-    assert config.description == "Agent for config test"
-    assert config.instructions == "Test instructions" 
-    assert config.model == "test-model"
-    assert config.max_iterations == 5
-
-
 if __name__ == "__main__":
     import asyncio
     

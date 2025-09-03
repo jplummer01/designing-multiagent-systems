@@ -1,88 +1,138 @@
-# Multi-Agent Systems with AutoGen
+# Designing Multi-Agent Systems
 
-This repository contains code examples for building multi-agent applications (powered by generative AI models) based on the [AutoGen](https://github.com/microsoft/autogen) framework and is the official code repository for the book - [Multi-Agent Systems with AutoGen](https://mng.bz/eVP9), published by Manning Publications.
+Official code repository for **"Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"** by Victor Dibia.
 
-[![Multi-Agent Systems with AutoGen Manning Early Access Program](/docs/images/bookcover.png)](https://mng.bz/eVP9)
+![Designing Multi-Agent Systems](../../../images/bookcover.png)
 
-The book is currently available for pre-order in the [Manning Early Access Program](https://mng.bz/eVP9) (only the first few chapters are available currently).
+Learn to build effective multi-agent systems from first principles (from scratch) through complete, tested implementations.
 
-Pre-order the book now at https://mng.bz/eVP9.
+## Why This Book & Code Repository?
 
-> [!TIP]
-> 🔥🔥 Use the code **mldibia** for a 50% discount, valid until **August 5th**.
+As the AI agent space evolves rapidly, clear patterns are emerging for building effective multi-agent systems. This book focuses on identifying these patterns and providing practical guidance for applying them effectively.
 
-In [Multi-Agent Systems with AutoGen](https://mng.bz/eVP9), you will learn about the core components of agents (Generative AI models, tools, memory, orchestration), how to implement them in python code using the AutoGen framework, how to evaluate, optimize and deploy them in your applications. Overall, the book will cover:
+**What makes this approach unique:**
 
-- Core components for multi-agent systems and their implementation
-- UX design principles for multi-agent systems
-- Building agents to interact with various interface (web, mobile, desktop)
-- Evaluating your multi-agent system using benchmarks like GAIA, GPTQ, SWEBench and your own custom benchmarks
-- Performance optimization (e.g., agent-specific model tuning and parallel processing)
-- Use case deep dives like data analysis, customer service, and creativity workflows.
+- **Fundamentals-first**: Build from scratch to understand every component and design decision
+- **Complete implementations**: Every theoretical concept backed by working, tested code
+- **Framework-agnostic**: Core patterns that transcend any specific framework
+- **Production considerations**: Evaluation, optimization, and deployment guidance from real-world experience
 
-### Useful Links
+## What You'll Learn & Build
 
-- Link to official [source code on GiHub](https://github.com/victordibia/designing-multiagent-systems)
-- Link to book on [Manning.com](https://mng.bz/eVP9)
-- Link to book website (interactive demos, about authors etc) - https://multiagentbook.com/
+The book is organized across 4 parts, taking you from theory to production:
 
-> [!NOTE]
-> If you downloaded the code bundle from the Manning website, please consider visiting the official code repository on GitHub at https://github.com/victordibia/designing-multiagent-systems for the latest updates.
+### Part I: Foundations of Multi-Agent Systems
 
-To download a copy of this code repository, click on the [Download Zip](https://github.com/victordibia/designing-multiagent-systems/archive/refs/heads/main.zip) button or run the following code from your terminal.
+| Chapter | Title | Code | Learning Outcome |
+|---------|-------|------|------------------|
+| **Ch 1** | Understanding Multi-Agent Systems | - | Understand when multi-agent systems are needed |
+| **Ch 2** | Multi-Agent Patterns | - | Master coordination strategies (workflows vs autonomous) |
+| **Ch 3** | UX of Multi-Agent Systems | - | Build intuitive agent interfaces |
+
+### Part II: Building Multi-Agent Systems from Scratch
+
+| Chapter | Title | Code | Learning Outcome |
+|---------|-------|------|------------------|
+| **Ch 4** | Building Your First Agent | [`01_basic_agent.py`](picoagents/examples/01_basic_agent.py) | Create agents with reasoning, tools, memory |
+| **Ch 5** | Building Multi-Agent Workflows | [`workflow/`](picoagents/workflow/) | Build deterministic multi-agent systems |
+| **Ch 6** | Autonomous Multi-Agent Orchestration | [`orchestration/`](picoagents/orchestration/) | Create adaptive agent coordination |
+| **Ch 6** | Multi-Agent Frameworks | - | Compare and evaluate existing frameworks |
+
+### Part III: Evaluating and Optimizing Multi-Agent Systems  
+
+| Chapter | Title | Code | Learning Outcome |
+|---------|-------|------|------------------|
+| **Ch 8** | Evaluating Multi-Agent Systems | Evaluation framework | Measure and improve agent performance |
+
+### Part IV: Real-World Applications
+
+| Chapter | Title | Code | Learning Outcome |
+|---------|-------|------|------------------|
+| **Ch 12** | Multi-Perspective Information Processing | Complete case study | Deploy production multi-agent systems |
+
+## Getting Started
+
+### Installation
 
 ```bash
-git clone --depth 1 https https://github.com/victordibia/designing-multiagent-systems.git
+# Clone the repository
+git clone https://github.com/victordibia/designing-multiagent-systems.git
+cd designing-multiagent-systems
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install the picoagents library
+cd picoagents
+pip install -e .
+
+# Set up your API key
+export OPENAI_API_KEY="your-api-key-here"
 ```
 
-## Getting Jupyter Notebooks to work on your computer
+### Quick Start: Your First Agent
 
-This section explains how to install the pre-requisite libraries so that you can use the notebooks within this book. So that the libraries are safely installed for the context of this book, we use the python [virtual environment](https://docs.python.org/3/library/venv.html) concept.
+```python
+from picoagents import Agent, OpenAIChatCompletionClient
 
-1. [Install](https://www.python.org/downloads/) Python on your computer. Recommended versions are 3.9 through 3.12
-2. Clone the repository: `git clone https://github.com/victordibia/designing-multiagent-systems.git`
-3. Go into the directory: `cd designing-multiagent-systems`
-4. Create a virtual environment: `python -m venv venv`
-5. Activate the virtual environment: `. ./venv/bin/activate`
-6. Install the required libraries into this environment: `pip install -r requirements.txt`
-7. Run Jupyter Lab: `jupyter lab`
-8. Within Jupyter Lab, change directories into the respective chapter and open the python notebooks.
+def get_weather(location: str) -> str:
+    """Get current weather for a given location."""
+    return f"The weather in {location} is sunny, 75°F"
 
-## Table of Contents
+# Create an agent
+agent = Agent(
+    name="assistant",
+    instructions="You are helpful. Use tools when appropriate.",
+    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini"),
+    tools=[get_weather]
+)
 
-The code in this repo is organized into chapters (shown in the table). Each chapter contains code for the various concepts and tools discussed in the book.
+# Use the agent
+response = await agent.run("What's the weather in Paris?")
+print(response.messages[-1].content)
+```
 
-<!-- chapter, description, code links
-1. Understanding Multi-Agent Systems.  no code
-2. Building Your First Multi-Agent Application /ch02
-3. THE USER EXPERIENCE (UX) OF MULTI-AGENT SYSTEMS
-  -->
+### Explore the Examples
 
-| Chapter | Description                                      | Code                                                                                                                                            |
-| ------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1       | Understanding Multi-Agent Systems                | no code                                                                                                                                         |
-| 2       | Building Your First Multi-Agent Application      | - [Your first multi-agent application](/ch02/ch2_first_application.ipynb) <br> - [Orchestrating groups of agents](/ch02/ch2_agent_groups.ipynb) |
-| 3       | The User Experience (UX) for Multi-Agent Systems | no code                                                                                                                                         |
-| 4       | Interface Agents                                 | - [Interface library (built from scratch)](/src/interface) <br> - [Implementing an interface agent notebook](/ch04/interface_agents.ipynb)      |
+```bash
+# Run basic agent example
+python picoagents/examples/01_basic_agent.py
+
+# Try autonomous orchestration
+python picoagents/examples/02_roundrobin_orchestration.py
+```
+
+## PicoAgents Framework
+
+The [`picoagents/`](picoagents/) directory contains a complete multi-agent framework built from scratch to demonstrate every concept in the book:
+
+```
+picoagents/
+├── agents.py          # Core Agent implementation (Ch 4)
+├── workflow/          # Explicit control patterns (Ch 5)
+├── orchestration/     # Autonomous control patterns (Ch 6)
+├── examples/          # Complete chapter implementations
+└── tests/            # Comprehensive test suite
+```
+
+## Get the Book
+
+**"Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"**
+
+This repository implements every concept from the book. The book provides the theory, design trade-offs, and production considerations you need to build effective multi-agent systems.
 
 ## Questions and Feedback
 
-If you have any questions or feedback about the book or the code in this repository, please feel free to open an [issue]().
+Questions or feedback about the book or code? Please [open an issue](https://github.com/victordibia/designing-multiagent-systems/issues).
 
-For questions about the AutoGen framework, you can also visit the [AutoGen GitHub repository](https://github.com/microsoft/autogen) or the [AutoGen documentation](https://microsoft.github.io/autogen/).
+## Citation
 
-### Citation
-
-If you find this book or code useful for your research, please consider citing it:
-
-```
-@book{multiagentsystems2024,
-  author       = {Dibia, Victor},
-  title        = {Multi-Agent Systems with AutoGen},
-  publisher    = {Manning},
-  year         = {2024},
-  isbn         = {9781633436145},
-  url          = {https://www.manning.com/books/multi-agent-systems-with-autogen},
-  github       = {https://github.com/victordibia/designing-multiagent-systems}
+```bibtex
+@book{dibia2025multiagent,
+  title={Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents},
+  author={Dibia, Victor},
+  year={2025},
+  github={https://github.com/victordibia/designing-multiagent-systems}
 }
 ```

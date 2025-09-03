@@ -6,7 +6,7 @@ import time
 import pytest
 from typing import List, Union, cast
 
-from picoagents.orchestration.termination import (
+from picoagents.termination import (
     MaxMessageTermination,
     TextMentionTermination,
     TokenUsageTermination,

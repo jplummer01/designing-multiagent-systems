@@ -250,7 +250,7 @@ async def test_round_robin_orchestrator_max_iterations():
     def never_terminate():
         return external_flag[0]
     
-    from picoagents.orchestration.termination import ExternalTermination
+    from picoagents.termination import ExternalTermination
     termination = ExternalTermination(never_terminate)
     
     orchestrator = RoundRobinOrchestrator(agents, termination, max_iterations=3)

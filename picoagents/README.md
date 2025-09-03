@@ -1,17 +1,26 @@
-# PicoAgents [Beta]
+# PicoAgents
 
 A minimal multi-agent framework for educational purposes, accompanying the book "Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents" by Victor Dibia.
 
-> Note: While the principles in this library are "production-ready" and mirror many of the decisions made in frameworks like AutoGen, Google ADK etc, careful consideration should be given before using it in production environments.
+> Note: While the principles in this library are "production-ready" and mirror many of the decisions made in real-world multi-agent frameworks, careful consideration should be given before using it in production environments.
 
-## Overview
+**🎯 From Theory to Implementation**: Every concept in the book has a complete, tested implementation you can learn from and extend.
 
-PicoAgents demonstrates core multi-agent concepts by building agents and coordination patterns from scratch. It's designed to be:
+## Why PicoAgents?
 
-- **Educational**: Clear, well-documented implementations of core concepts
-- **Minimal**: Focused on essential patterns without unnecessary complexity
-- **Extensible**: Easy to modify and experiment with different approaches
-- **Type-safe**: Full typing support with pyright/mypy
+Most multi-agent tutorials show you toy examples. This book—and PicoAgents—shows you how to build production systems from first principles:
+
+| What You Learn | What You Build | Real Impact |
+|----------------|----------------|-------------|
+| **Agent Architecture** | Complete `Agent` class with reasoning, tools, memory | Deploy agents that solve actual tasks |
+| **Workflow Orchestration** | Type-safe, streaming workflow engine | Build reliable multi-step AI systems |
+| **Autonomous Coordination** | AI-driven agent orchestration patterns | Create adaptive, self-organizing teams |
+| **Production Deployment** | Evaluation, monitoring, error handling | Ship multi-agent systems with confidence |
+
+- **Battle-tested patterns**: Implements proven architectures from production multi-agent systems
+- **Complete implementations**: No black boxes—see exactly how agents, workflows, and orchestration work
+- **Type-safe**: Full typing support for robust production code
+- **Extensible**: Designed for experimentation and customization
 
 ## Installation
 
@@ -27,90 +36,99 @@ pip install -e .
 
 ## Quick Start
 
-### Creating a Basic Agent
+### Building Your First Agent (Chapter 4)
 
 ```python
-from picoagents import Agent, get_weather
+from picoagents import Agent, OpenAIChatCompletionClient
 
-# Create an agent with tools
+def get_weather(location: str) -> str:
+    """Get current weather for a given location."""
+    return f"The weather in {location} is sunny, 75°F"
+
+# Create an agent - that's it!
 agent = Agent(
-    name="weather_assistant",
-    instructions="You are a helpful weather assistant.",
-    model="gpt-4",
-    tools=[get_weather]
+    name="assistant", 
+    instructions="You are helpful. Use tools when appropriate.",
+    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini"),
+    tools=[get_weather]  # Functions become tools automatically!
 )
 
 # Use the agent
-response = agent.run("What's the weather like in San Francisco?")
-print(response)
+response = await agent.run("What's the weather in Paris?")
+print(response.messages[-1].content)
+# Output: "The weather in Paris is sunny, 75°F"
 ```
 
-### Sequential Workflow Pattern
+### Multi-Agent Workflows (Chapter 5)
 
 ```python
-from picoagents import Agent, SequentialWorkflow, AgentNode
+from picoagents.orchestration.workflow import Workflow, WorkflowRunner, FunctionStep
 
-# Create agents
-researcher = Agent("researcher", "You research topics thoroughly.")
-writer = Agent("writer", "You write clear, engaging content.")
-editor = Agent("editor", "You edit and improve text.")
+# Define workflow steps
+def research_step(topic: str) -> str:
+    return f"Research findings on {topic}"
 
-# Create workflow
-workflow = SequentialWorkflow("content_pipeline")
-workflow.add_node(AgentNode("research", researcher))
-workflow.add_node(AgentNode("write", writer))
-workflow.add_node(AgentNode("edit", editor))
+def write_step(research: str) -> str:
+    return f"Article based on: {research}"
 
-# Run workflow
-result = workflow.run("Write an article about renewable energy")
+# Create type-safe workflow
+workflow = Workflow("content_pipeline")
+workflow.add_step(FunctionStep("research", research_step))
+workflow.add_step(FunctionStep("write", write_step))
+workflow.add_edge("research", "write")
+
+# Run with streaming observability
+runner = WorkflowRunner(workflow)
+result = await runner.run({"topic": "renewable energy"})
 ```
 
-### Round-Robin Orchestration
+### Autonomous Orchestration (Chapter 6)
 
 ```python
-from picoagents import Agent, RoundRobinOrchestrator
+from picoagents import Agent, OpenAIChatCompletionClient
+from picoagents.orchestration import RoundRobinOrchestrator
 
 # Create specialized agents
-coder = Agent("coder", "You write clean, efficient code.")
-tester = Agent("tester", "You test code and find bugs.")
-reviewer = Agent("reviewer", "You review code quality.")
+researcher = Agent(
+    name="researcher",
+    instructions="Research topics and provide factual insights.",
+    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini")
+)
 
-# Create orchestrator
-orchestrator = RoundRobinOrchestrator("development_team")
-orchestrator.add_agent(coder)
-orchestrator.add_agent(tester)
-orchestrator.add_agent(reviewer)
+writer = Agent(
+    name="writer", 
+    instructions="Write engaging content based on research.",
+    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini")
+)
 
-# Solve task collaboratively
-result = orchestrator.orchestrate("Create a Python function to calculate fibonacci numbers")
+# Create orchestrator with termination conditions
+orchestrator = RoundRobinOrchestrator(
+    "content_team",
+    agents=[researcher, writer],
+    max_messages=10  # Prevent runaway execution
+)
+
+# Agents coordinate autonomously
+result = await orchestrator.orchestrate("Write about renewable energy trends")
 ```
 
-## Core Concepts
+## What You'll Learn & Build
 
-### Agents (Chapter 4)
+| Chapter | Concept | Implementation | Example |
+|---------|---------|----------------|---------|
+| **Ch 4** | Agent Architecture | `Agent` with reasoning, tools, memory | [`01_basic_agent.py`](examples/01_basic_agent.py) |
+| **Ch 5** | Workflow Orchestration | Type-safe `Workflow` + `WorkflowRunner` | Sequential, conditional, parallel patterns |
+| **Ch 6** | Autonomous Coordination | `RoundRobinOrchestrator`, `AIOrchestrator` | [`02_roundrobin_orchestration.py`](examples/02_roundrobin_orchestration.py) |
+| **Ch 8** | Evaluation Systems | Testing framework + metrics | Production-ready evaluation patterns |
+| **Ch 12** | Real-World Apps | Complete case study | Multi-perspective information processing |
 
-The foundation of the framework is the `Agent` class that implements:
+### Core Architecture
 
-- **Reasoning**: Integration with language models (OpenAI GPT, etc.)
-- **Acting**: Tool calling and execution
-- **Memory**: Information storage and retrieval
-- **Communication**: Message history and context management
+**Agent Foundation**: Every agent implements the universal pattern: `reason → act → communicate → adapt`
 
-### Workflow Patterns (Chapter 2 - Explicit Control)
+**Workflow Control**: Deterministic execution with type safety and streaming observability  
 
-Predefined execution paths with deterministic behavior:
-
-- **Sequential**: Linear execution (A → B → C)
-- **Conditional**: Branching logic with decision points
-- **Parallel**: Concurrent execution with fan-out/fan-in
-
-### Orchestration Patterns (Chapter 2 - Autonomous Control)
-
-Runtime-determined coordination through agent reasoning:
-
-- **Round-Robin**: Simple turn-taking between agents
-- **LLM-Based**: AI-driven agent selection and coordination
-- **Plan-Based**: Explicit planning with dynamic execution
+**Autonomous Orchestration**: AI-driven coordination with robust termination conditions
 
 ## Architecture
 
@@ -132,12 +150,15 @@ src/picoagents/
 
 ## Examples
 
-The `examples/` directory contains implementations from each chapter:
+Complete implementations for every chapter concept:
 
-- `chapter04_basic_agent.py` - Building your first agent
-- `chapter05_workflow_patterns.py` - Multi-agent workflows
-- `chapter06_orchestration.py` - Autonomous coordination
-- `advanced_examples.py` - Complex multi-agent systems
+- [`01_basic_agent.py`](examples/01_basic_agent.py) - Building your first agent (Chapter 4)
+- [`02_roundrobin_orchestration.py`](examples/02_roundrobin_orchestration.py) - Round-robin coordination (Chapter 6)  
+- [`03_ai_orchestration_example.py`](examples/03_ai_orchestration_example.py) - AI-driven orchestration (Chapter 6)
+- [`04_plan_based_orchestration_example.py`](examples/04_plan_based_orchestration_example.py) - Plan-based coordination (Chapter 6)
+- [`05_component_serialization.py`](examples/05_component_serialization.py) - Production serialization patterns
+
+**📖 Get the Book**: Each example directly corresponds to book chapters with detailed explanations, trade-offs, and production considerations.
 
 ## Development
 
@@ -175,21 +196,23 @@ This is an educational framework designed to accompany the book. Contributions s
 
 MIT License - see LICENSE file for details.
 
-## Related Resources
+## Get the Book
 
-- Book: "Designing Multi-Agent Systems: Principles, Patterns, and Implementation"
-- Documentation: [Coming soon]
-- Examples: See `examples/` directory
+**"Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"** by Victor Dibia
+
+This framework implements every concept from the book with production-ready code. The book provides:
+
+- **Deep explanations** of when and why to use each pattern  
+- **Trade-off analysis** for production decision-making
+- **Real-world case studies** with complete implementations
+- **Evaluation frameworks** for measuring system performance
 
 ## Citation
 
-If you use this framework in academic work, please cite:
-
 ```bibtex
 @book{dibia2025multiagent,
-  title={Designing Multi-Agent Systems: Principles, Patterns, and Implementation},
+  title={Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents},
   author={Dibia, Victor},
-  year={2025},
-  publisher={...}
+  year={2025}
 }
 ```

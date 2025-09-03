@@ -9,13 +9,11 @@ This example demonstrates the core agent concepts from Chapter 4:
 """
 
 import asyncio
-from typing import Dict, Any
 
 from picoagents import (
     Agent, 
     AgentConfigurationError,
     OpenAIChatCompletionClient,
-    FunctionTool,
     ListMemory,
     ToolMessage
 )
