@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft. All rights reserved.
+# pip install agent-framework
 """Sample weather agent for Agent Framework Debug UI."""
 
 import asyncio
