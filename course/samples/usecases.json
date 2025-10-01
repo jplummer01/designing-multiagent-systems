@@ -58,6 +58,21 @@
       ],
       "implementations": [
         {
+          "framework": "agent_framework",
+          "title": "Agent Framework Implementation",
+          "description": "Implementation using agent_framework",
+          "code": {
+            "path": "/samples/hello_world/agent_framework/app.py",
+            "language": "python",
+            "loc": 37,
+            "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/hello_world/agent_framework/app.py",
+            "metadata": {}
+          },
+          "results": {
+            "path": "/samples/hello_world/agent_framework/results.json"
+          }
+        },
+        {
           "framework": "autogen_agentchat",
           "title": "Autogen Agentchat Implementation",
           "description": "Implementation using autogen_agentchat",
@@ -295,7 +310,7 @@
           "code": {
             "path": "/samples/mcp_server_101/mcp/app.py",
             "language": "python",
-            "loc": 121,
+            "loc": 94,
             "githubUrl": "https://github.com/victordibia/designing-multiagent-systems/blob/main/course/samples/mcp_server_101/mcp/app.py",
             "metadata": {
               "title": "MCP Server 101",
@@ -644,6 +659,7 @@
       "travel"
     ],
     "frameworks": [
+      "agent_framework",
       "autogen_agentchat",
       "autogen_core",
       "google_adk",
