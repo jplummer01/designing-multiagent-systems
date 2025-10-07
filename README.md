@@ -28,11 +28,11 @@ The book is organized across 4 parts, taking you from theory to production:
 
 ### Part I: Foundations of Multi-Agent Systems
 
-| Chapter  | Title                                        | Code | Learning Outcome                                         |
-| -------- | -------------------------------------------- | ---- | -------------------------------------------------------- |
-| **Ch 1** | Understanding Multi-Agent Systems            | -    | Understand when multi-agent systems are needed           |
-| **Ch 2** | Multi-Agent Patterns                         | -    | Master coordination strategies (workflows vs autonomous) |
-| **Ch 3** | UX Design Principles for Multi-Agent Systems | -    | Build intuitive agent interfaces                         |
+| Chapter  | Title                                        | Code                                                                                     | Learning Outcome                                         |
+| -------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **Ch 1** | Understanding Multi-Agent Systems            | Poet/critic example, references [`yc_analysis/`](picoagents/examples/workflows/yc_analysis/) | Understand when multi-agent systems are needed           |
+| **Ch 2** | Multi-Agent Patterns                         | -                                                                                        | Master coordination strategies (workflows vs autonomous) |
+| **Ch 3** | UX Design Principles for Multi-Agent Systems | -                                                                                        | Build intuitive agent interfaces                         |
 
 ### Part II: Building Multi-Agent Systems from Scratch
 
