@@ -29,7 +29,7 @@ The book is organized across 4 parts, taking you from theory to production:
 
 | Chapter  | Title                                        | Code                                                                                     | Learning Outcome                                         |
 | -------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **Ch 1** | Understanding Multi-Agent Systems            | Poet/critic example, references [`yc_analysis/`](picoagents/examples/workflows/yc_analysis/) | Understand when multi-agent systems are needed           |
+| **Ch 1** | Understanding Multi-Agent Systems            | Poet/critic example, references [`yc_analysis/`](examples/workflows/yc_analysis/) | Understand when multi-agent systems are needed           |
 | **Ch 2** | Multi-Agent Patterns                         | -                                                                                        | Master coordination strategies (workflows vs autonomous) |
 | **Ch 3** | UX Design Principles for Multi-Agent Systems | -                                                                                        | Build intuitive agent interfaces                         |
 
@@ -37,10 +37,10 @@ The book is organized across 4 parts, taking you from theory to production:
 
 | Chapter  | Title                                 | Code                                                                                                                                                                                                                                                                     | Learning Outcome                                                                          |
 | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](picoagents/examples/agents/basic-agent.py), [`memory.py`](picoagents/examples/agents/memory.py), [`middleware.py`](picoagents/examples/agents/middleware.py)                        | Create production agents with tools, memory, streaming, and middleware                    |
-| **Ch 5** | Computer Use Agents                   | [`agents/_computer_use/`](picoagents/src/picoagents/agents/_computer_use/), [`computer_use.py`](picoagents/examples/agents/computer_use.py)                                                                                                                              | Build browser automation agents with multimodal reasoning                                 |
-| **Ch 5** | Building Multi-Agent Workflows        | [`workflow/`](picoagents/src/picoagents/workflow/), [`data_visualization/`](picoagents/examples/workflows/data_visualization/)                                                                                                                                           | Build type-safe workflows with streaming observability                                    |
-| **Ch 6** | Autonomous Multi-Agent Orchestration  | [`orchestration/`](picoagents/src/picoagents/orchestration/), [`round-robin.py`](picoagents/examples/orchestration/round-robin.py), [`ai-driven.py`](picoagents/examples/orchestration/ai-driven.py), [`plan-based.py`](picoagents/examples/orchestration/plan-based.py) | Implement GroupChat, LLM-driven, and plan-based orchestration (Magentic One patterns)     |
+| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](examples/agents/basic-agent.py), [`memory.py`](examples/agents/memory.py), [`middleware.py`](examples/agents/middleware.py)                        | Create production agents with tools, memory, streaming, and middleware                    |
+| **Ch 5** | Computer Use Agents                   | [`agents/_computer_use/`](picoagents/src/picoagents/agents/_computer_use/), [`computer_use.py`](examples/agents/computer_use.py)                                                                                                                              | Build browser automation agents with multimodal reasoning                                 |
+| **Ch 5** | Building Multi-Agent Workflows        | [`workflow/`](picoagents/src/picoagents/workflow/), [`data_visualization/`](examples/workflows/data_visualization/)                                                                                                                                           | Build type-safe workflows with streaming observability                                    |
+| **Ch 6** | Autonomous Multi-Agent Orchestration  | [`orchestration/`](picoagents/src/picoagents/orchestration/), [`round-robin.py`](examples/orchestration/round-robin.py), [`ai-driven.py`](examples/orchestration/ai-driven.py), [`plan-based.py`](examples/orchestration/plan-based.py) | Implement GroupChat, LLM-driven, and plan-based orchestration (Magentic One patterns)     |
 | **Ch 6** | Building Modern Agent UX Applications | [`webui/`](picoagents/src/picoagents/webui/), CLI tools                                                                                                                                                                                                                  | Build interactive agent applications with web UI, auto-discovery, and real-time streaming |
 | **Ch 6** | Multi-Agent Frameworks                | -                                                                                                                                                                                                                                                                        | Evaluate and choose the right multi-agent framework                                       |
 
@@ -48,13 +48,13 @@ The book is organized across 4 parts, taking you from theory to production:
 
 | Chapter  | Title                          | Code                                                                                                                    | Learning Outcome                                          |
 | -------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Ch 8** | Evaluating Multi-Agent Systems | [`eval/`](picoagents/src/picoagents/eval/), [`agent-evaluation.py`](picoagents/examples/evaluation/agent-evaluation.py) | Build evaluation frameworks with LLM-as-judge and metrics |
+| **Ch 8** | Evaluating Multi-Agent Systems | [`eval/`](picoagents/src/picoagents/eval/), [`agent-evaluation.py`](examples/evaluation/agent-evaluation.py) | Build evaluation frameworks with LLM-as-judge and metrics |
 
 ### Part IV: Real-World Applications
 
 | Chapter   | Title                                     | Code                                                         | Learning Outcome                                                                         |
 | --------- | ----------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| **Ch 13** | Business Questions from Unstructured Data | [`yc_analysis/`](picoagents/examples/workflows/yc_analysis/) | Production case study: Analyze 5,000+ companies with cost optimization and checkpointing |
+| **Ch 13** | Business Questions from Unstructured Data | [`yc_analysis/`](examples/workflows/yc_analysis/) | Production case study: Analyze 5,000+ companies with cost optimization and checkpointing |
 
 ## Getting Started
 
@@ -125,49 +125,62 @@ The Web UI provides streaming chat, real-time debug events, session management, 
 
 ### Run Examples
 
+Examples are now at the root level for easy access:
+
 ```bash
-# Basic agent with tools
+# Basic agent with tools (Chapter 4)
 python examples/agents/basic-agent.py
 
-# Browser automation agent
+# Browser automation agent (Chapter 5)
 python examples/agents/computer_use.py
 
-# Autonomous orchestration
+# Autonomous orchestration (Chapter 6)
 python examples/orchestration/round-robin.py
 python examples/orchestration/ai-driven.py
+
+# Production workflow (Chapter 13)
+python examples/workflows/yc_analysis/workflow.py
 ```
 
 ## PicoAgents Framework
 
-The [`picoagents/`](picoagents/) directory contains a complete multi-agent framework built from scratch to demonstrate every concept in the book:
+This repository is organized into two main components:
+
+### 1. Framework Source ([`picoagents/`](picoagents/))
+Complete multi-agent framework built from scratch:
 
 ```
-picoagents/src/picoagents/
-├── agents/            # Core Agent implementation (Ch 4)
-│   ├── _agent.py      # Complete agent with streaming, tools, memory
-│   └── _computer_use/ # Browser automation agents (Ch 5)
-├── workflow/          # Type-safe workflow engine (Ch 5)
-│   ├── core/          # DAG-based execution with streaming
-│   └── steps/         # Reusable workflow steps
-├── orchestration/     # Autonomous coordination (Ch 6)
-│   ├── _round_robin.py  # Sequential turn-taking
-│   ├── _ai.py           # LLM-driven speaker selection
-│   └── _plan.py         # Plan-based orchestration (Magentic One)
-├── tools/             # 15+ built-in tools (core, research, coding)
-├── eval/              # Evaluation framework (Ch 8)
-│   ├── judges/        # LLM-as-judge, reference-based
-│   └── _runner.py     # Test execution and metrics
-├── webui/             # Web UI with auto-discovery (Ch 6)
-├── llm/               # OpenAI and Azure clients
-├── memory/            # Memory implementations
-├── termination/       # 9 termination conditions
-└── middleware/        # Extensible middleware system
+picoagents/
+├── src/picoagents/
+│   ├── agents/            # Core Agent implementation (Ch 4)
+│   │   ├── _agent.py      # Complete agent with streaming, tools, memory
+│   │   └── _computer_use/ # Browser automation agents (Ch 5)
+│   ├── workflow/          # Type-safe workflow engine (Ch 5)
+│   │   ├── core/          # DAG-based execution with streaming
+│   │   └── steps/         # Reusable workflow steps
+│   ├── orchestration/     # Autonomous coordination (Ch 6)
+│   │   ├── _round_robin.py  # Sequential turn-taking
+│   │   ├── _ai.py           # LLM-driven speaker selection
+│   │   └── _plan.py         # Plan-based orchestration (Magentic One)
+│   ├── tools/             # 15+ built-in tools (core, research, coding)
+│   ├── eval/              # Evaluation framework (Ch 8)
+│   │   ├── judges/        # LLM-as-judge, reference-based
+│   │   └── _runner.py     # Test execution and metrics
+│   ├── webui/             # Web UI with auto-discovery (Ch 6)
+│   ├── llm/               # OpenAI and Azure clients
+│   ├── memory/            # Memory implementations
+│   ├── termination/       # 9 termination conditions
+│   └── middleware/        # Extensible middleware system
+└── tests/                 # Comprehensive test suite
+
+### 2. Examples ([`examples/`](examples/))
+50+ runnable examples organized by chapter:
 
 examples/
-├── agents/            # Basic agents, tools, memory, computer use
-├── workflows/         # Sequential, parallel, production workflows
-├── orchestration/     # Round-robin, AI-driven, plan-based
-└── evaluation/        # Agent evaluation patterns
+├── agents/            # Ch 4: Basic agents, tools, memory, computer use
+├── workflows/         # Ch 5: Sequential, parallel, production workflows
+├── orchestration/     # Ch 6: Round-robin, AI-driven, plan-based
+└── evaluation/        # Ch 8: Agent evaluation patterns
 ```
 
 ## Key Features

@@ -34,3 +34,6 @@ build/
 # Distribution
 *.egg
 MANIFEST
+
+# Design documents (internal planning)
+docs/MEMORY_TOOL_DESIGN.md
