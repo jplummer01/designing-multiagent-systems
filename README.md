@@ -1,22 +1,12 @@
 # Designing Multi-Agent Systems
 
-Official code repository for **"Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"** by Victor Dibia.
+Official code repository for [Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents](https://buy.multiagentbook.com) by [Victor Dibia](https://victordibia.com).
 
 ![Designing Multi-Agent Systems](./docs/images/bookcover.png)
 
 Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency so you can understand exactly how production systems are built.
 
-## Getting Started
-
-**Three ways to run the code:**
-
-1. **Interactive notebooks**: Click Colab badges in chapter tables below to run examples in your browser
-2. **Codespaces**: [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1) - Pre-configured environment, no local setup
-3. **Local install**: See [installation instructions](#installation)
-
----
-
-[🚀 Framework Architecture](#picoagents-framework) | [📖 Buy Digital Edition](https://buy.multiagentbook.com) | [🛒 Buy Print - Coming Soon]()
+[📖 Buy Digital Edition](https://buy.multiagentbook.com) | [🛒 Buy Print - Coming Soon]()
 
 ---
 
@@ -37,50 +27,54 @@ The book is organized across 4 parts, taking you from theory to production:
 
 ### Part I: Foundations of Multi-Agent Systems
 
-| Chapter  | Title                                        | Code                                                                                     | Learning Outcome                                         |
-| -------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Chapter  | Title                                        | Code                                                                              | Learning Outcome                                         |
+| -------- | -------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | **Ch 1** | Understanding Multi-Agent Systems            | Poet/critic example, references [`yc_analysis/`](examples/workflows/yc_analysis/) | Understand when multi-agent systems are needed           |
-| **Ch 2** | Multi-Agent Patterns                         | -                                                                                        | Master coordination strategies (workflows vs autonomous) |
-| **Ch 3** | UX Design Principles for Multi-Agent Systems | -                                                                                        | Build intuitive agent interfaces                         |
+| **Ch 2** | Multi-Agent Patterns                         | -                                                                                 | Master coordination strategies (workflows vs autonomous) |
+| **Ch 3** | UX Design Principles for Multi-Agent Systems | -                                                                                 | Build intuitive agent interfaces                         |
 
 ### Part II: Building Multi-Agent Systems from Scratch
 
-| Chapter  | Title                                 | Code                                                                                                                                                                                                                                                                     | Learning Outcome                                                                          |
-| -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](examples/agents/basic-agent.py), [`memory.py`](examples/agents/memory.py), [`middleware.py`](examples/agents/middleware.py) <br> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/victordibia/designing-multiagent-systems/blob/main/examples/notebooks/01_basic_agent.ipynb)                       | Create production agents with tools, memory, streaming, and middleware                    |
-| **Ch 5** | Computer Use Agents                   | [`agents/_computer_use/`](picoagents/src/picoagents/agents/_computer_use/), [`computer_use.py`](examples/agents/computer_use.py)                                                                                                                              | Build browser automation agents with multimodal reasoning                                 |
-| **Ch 5** | Building Multi-Agent Workflows        | [`workflow/`](picoagents/src/picoagents/workflow/), [`data_visualization/`](examples/workflows/data_visualization/)                                                                                                                                           | Build type-safe workflows with streaming observability                                    |
-| **Ch 6** | Autonomous Multi-Agent Orchestration  | [`orchestration/`](picoagents/src/picoagents/orchestration/), [`round-robin.py`](examples/orchestration/round-robin.py), [`ai-driven.py`](examples/orchestration/ai-driven.py), [`plan-based.py`](examples/orchestration/plan-based.py) | Implement GroupChat, LLM-driven, and plan-based orchestration (Magentic One patterns)     |
-| **Ch 6** | Building Modern Agent UX Applications | [`webui/`](picoagents/src/picoagents/webui/), CLI tools                                                                                                                                                                                                                  | Build interactive agent applications with web UI, auto-discovery, and real-time streaming |
-| **Ch 6** | Multi-Agent Frameworks                | -                                                                                                                                                                                                                                                                        | Evaluate and choose the right multi-agent framework                                       |
+| Chapter  | Title                                 | Code                                                                                                                                                                                                                                                                                                                                                                                                                                    | Learning Outcome                                                                          |
+| -------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](examples/agents/basic-agent.py), [`memory.py`](examples/agents/memory.py), [`middleware.py`](examples/agents/middleware.py) <br> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/victordibia/designing-multiagent-systems/blob/main/examples/notebooks/01_basic_agent.ipynb) | Create production agents with tools, memory, streaming, and middleware                    |
+| **Ch 5** | Computer Use Agents                   | [`agents/_computer_use/`](picoagents/src/picoagents/agents/_computer_use/), [`computer_use.py`](examples/agents/computer_use.py)                                                                                                                                                                                                                                                                                                        | Build browser automation agents with multimodal reasoning                                 |
+| **Ch 5** | Building Multi-Agent Workflows        | [`workflow/`](picoagents/src/picoagents/workflow/), [`data_visualization/`](examples/workflows/data_visualization/)                                                                                                                                                                                                                                                                                                                     | Build type-safe workflows with streaming observability                                    |
+| **Ch 6** | Autonomous Multi-Agent Orchestration  | [`orchestration/`](picoagents/src/picoagents/orchestration/), [`round-robin.py`](examples/orchestration/round-robin.py), [`ai-driven.py`](examples/orchestration/ai-driven.py), [`plan-based.py`](examples/orchestration/plan-based.py)                                                                                                                                                                                                 | Implement GroupChat, LLM-driven, and plan-based orchestration (Magentic One patterns)     |
+| **Ch 6** | Building Modern Agent UX Applications | [`webui/`](picoagents/src/picoagents/webui/), CLI tools                                                                                                                                                                                                                                                                                                                                                                                 | Build interactive agent applications with web UI, auto-discovery, and real-time streaming |
+| **Ch 6** | Multi-Agent Frameworks                | -                                                                                                                                                                                                                                                                                                                                                                                                                                       | Evaluate and choose the right multi-agent framework                                       |
 
 ### Part III: Evaluating and Optimizing Multi-Agent Systems
 
-| Chapter  | Title                          | Code                                                                                                                    | Learning Outcome                                          |
-| -------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Chapter  | Title                          | Code                                                                                                         | Learning Outcome                                          |
+| -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
 | **Ch 8** | Evaluating Multi-Agent Systems | [`eval/`](picoagents/src/picoagents/eval/), [`agent-evaluation.py`](examples/evaluation/agent-evaluation.py) | Build evaluation frameworks with LLM-as-judge and metrics |
 
 ### Part IV: Real-World Applications
 
-| Chapter   | Title                                     | Code                                                         | Learning Outcome                                                                         |
-| --------- | ----------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Chapter   | Title                                     | Code                                              | Learning Outcome                                                                         |
+| --------- | ----------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | **Ch 13** | Business Questions from Unstructured Data | [`yc_analysis/`](examples/workflows/yc_analysis/) | Production case study: Analyze 5,000+ companies with cost optimization and checkpointing |
 
 ## Getting Started
 
-### Option 1: GitHub Codespaces (Recommended - Zero Setup!)
+### Option 1: Interactive Notebooks
 
-Click the badge above to open in Codespaces. Everything is pre-configured!
+Click Colab badges in the chapter tables below to run examples in your browser. No installation required.
 
-Once your Codespace opens:
-1. Open the terminal (it opens automatically)
-2. Add your API key: `export OPENAI_API_KEY='your-key'`
-3. Run an example: `python examples/agents/basic-agent.py`
-4. Or launch the Web UI: `picoagents ui`
+### Option 2: GitHub Codespaces
 
-**Free tier:** 60 hours/month for individual accounts
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
 
-### Option 2: Local Installation
+Pre-configured development environment in your browser. Once open:
+
+1. Add your API key: `export OPENAI_API_KEY='your-key'`
+2. Run examples: `python examples/agents/basic-agent.py`
+3. Launch Web UI: `picoagents ui`
+
+Free tier: 60 hours/month
+
+### Option 3: Local Installation
 
 ```bash
 # Clone the repository
@@ -169,6 +163,7 @@ python examples/workflows/yc_analysis/workflow.py
 This repository is organized into two main components:
 
 ### 1. Framework Source ([`picoagents/`](picoagents/))
+
 Complete multi-agent framework built from scratch:
 
 ```
