@@ -8,9 +8,10 @@ echo "📦 Upgrading pip..."
 python -m pip install --upgrade pip
 
 # Navigate to picoagents directory and install
-echo "📦 Installing PicoAgents with all dependencies..."
+echo "📦 Installing PicoAgents with core dependencies..."
 cd picoagents
-pip install -e ".[all]"
+# Install only core + web + examples (skip heavy ML/browser deps)
+pip install -e ".[web,examples]"
 cd ..
 
 # Create .env file from example if it doesn't exist
@@ -20,9 +21,15 @@ if [ ! -f "picoagents/.env" ]; then
     echo "⚠️  Remember to add your OPENAI_API_KEY to picoagents/.env"
 fi
 
-# Install Playwright browsers for computer use examples
-echo "🌐 Installing Playwright browsers (for computer use agents)..."
-playwright install chromium --with-deps || true
+# Skip heavy dependencies by default
+echo ""
+echo "ℹ️  Skipped heavy optional dependencies for faster setup:"
+echo "   - computer-use (Playwright browsers ~500MB)"
+echo "   - rag (ChromaDB + ML models)"
+echo ""
+echo "   Install if needed:"
+echo "   pip install -e '.[computer-use]' && playwright install chromium"
+echo "   pip install -e '.[rag]'"
 
 echo ""
 echo "✅ Setup complete!"

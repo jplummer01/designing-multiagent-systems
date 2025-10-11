@@ -25,6 +25,8 @@ As the AI agent space evolves rapidly, clear patterns are emerging for building 
 
 The book is organized across 4 parts, taking you from theory to production:
 
+> You can open the examples in GitHub Codespaces or run them locally. See [Getting Started](#getting-started) below. [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
+
 ### Part I: Foundations of Multi-Agent Systems
 
 | Chapter  | Title                                        | Code                                                                              | Learning Outcome                                         |
