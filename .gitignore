@@ -1,4 +1,5 @@
 # Byte-compiled / optimized / DLL files
+.claude
 .openai_key
 __pycache__/
 *.py[cod]

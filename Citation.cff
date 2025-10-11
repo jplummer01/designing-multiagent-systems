@@ -4,11 +4,7 @@ authors:
   - family-names: "Dibia"
     given-names: "Victor"
     orcid: "https://orcid.org/0000-0002-1839-5632"
-  - family-names: "Wang"
-    given-names: "Chi"
-    orcid: "https://orcid.org/0000-0000-0000-0000"
-title: "Multi-Agent Systems with AutoGen"
-version: 0.0.1
-isbn: "9781633436145"
-date-released: 2024-07-19
+title: "Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents"
+version: 1.0.0
+date-released: 2025-01-01
 url: "https://github.com/victordibia/designing-multiagent-systems"
