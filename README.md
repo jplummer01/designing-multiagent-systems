@@ -4,12 +4,11 @@ Official code repository for **"Designing Multi-Agent Systems: Principles, Patte
 
 ![Designing Multi-Agent Systems](./docs/images/bookcover.png)
 
-Learn to build effective multi-agent systems from first principles (from scratch) through complete, tested implementations.
+Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency so you can understand exactly how production systems are built.
 
-Buy the book now:
+[🚀 Jump to Framework Architecture](#picoagents-framework) | [📖 Buy Digital Edition](https://buy.multiagentbook.com) | [🛒 Buy Print - Coming Soon]()
 
-- Digital Edition - [Link](https://buy.multiagentbook.com)
-- Buy Print Edition on [Amazon - Coming Soon]()
+---
 
 ## Why This Book & Code Repository?
 
@@ -64,7 +63,10 @@ The book is organized across 4 parts, taking you from theory to production:
 ```bash
 # Clone the repository
 git clone https://github.com/victordibia/designing-multiagent-systems.git
-cd designing-multiagent-systems/picoagents
+cd designing-multiagent-systems
+
+# Navigate to the PicoAgents framework directory
+cd picoagents
 
 # Create virtual environment (recommended)
 python -m venv venv
@@ -109,6 +111,8 @@ print(response.messages[-1].content)
 
 ### Launch the Web UI
 
+![PicoAgents Web UI](./docs/images/picoagents_screenshot.png)
+
 ```bash
 # Auto-discover agents, orchestrators, and workflows in current directory
 picoagents ui
@@ -116,6 +120,8 @@ picoagents ui
 # Or specify a directory
 picoagents ui --dir ./examples
 ```
+
+The Web UI provides streaming chat, real-time debug events, session management, and automatic discovery of all agents and workflows in your codebase.
 
 ### Run Examples
 

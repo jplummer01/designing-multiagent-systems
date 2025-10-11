@@ -5,26 +5,34 @@ This module provides a simple, type-safe evaluation framework for testing
 and comparing different picoagents components (agents, models, orchestrators).
 """
 
-from ._base import BaseEvalTarget, BaseEvalJudge, BaseEvalRunner
-from ._runner import EvalRunner  
+from ._base import BaseEvalJudge, BaseEvalRunner, BaseEvalTarget
+from ._runner import EvalRunner
 from ._targets import AgentEvalTarget, ModelEvalTarget, OrchestratorEvalTarget
-from .judges import BaseEvalJudge as BaseJudge, LLMEvalJudge
+from .judges import BaseEvalJudge as BaseJudge
+from .judges import (
+    CompositeJudge,
+    ContainsJudge,
+    ExactMatchJudge,
+    FuzzyMatchJudge,
+    LLMEvalJudge,
+)
 
 __all__ = [
     # Base classes
-    "BaseEvalTarget", 
+    "BaseEvalTarget",
     "BaseEvalJudge",
     "BaseEvalRunner",
-    
     # Implementations
     "EvalRunner",
-    
     # Evaluation targets
     "AgentEvalTarget",
-    "ModelEvalTarget", 
+    "ModelEvalTarget",
     "OrchestratorEvalTarget",
-    
     # Judges
     "BaseJudge",
     "LLMEvalJudge",
+    "ExactMatchJudge",
+    "FuzzyMatchJudge",
+    "ContainsJudge",
+    "CompositeJudge",
 ]

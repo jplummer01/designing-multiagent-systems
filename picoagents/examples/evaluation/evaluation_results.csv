@@ -1,0 +1,10 @@
+system,task,overall_score,accuracy,helpfulness,clarity,tokens_total,duration_ms,llm_calls,cost
+Direct-Model,Report,9.67,10.0,9.5,9.5,888,7843,1,0.052169999999999994
+Direct-Model,Research,9.0,9.0,9.0,9.0,257,1882,1,0.01428
+Direct-Model,Reasoning,9.0,9.0,9.0,9.0,576,4885,1,0.033299999999999996
+Single-Agent,Report,9.33,10.0,9.0,9.0,709,5256,1,0.0
+Single-Agent,Research,9.0,9.0,9.0,9.0,1247,4801,1,0.0
+Single-Agent,Reasoning,9.0,9.0,9.0,9.0,1943,6843,1,0.0
+Multi-Agent-Writer-Critic,Report,9.3,10.0,9.0,9.0,19555,24480,6,0.0
+Multi-Agent-Writer-Critic,Research,9.0,9.0,9.0,9.0,30412,19369,7,0.0
+Multi-Agent-Writer-Critic,Reasoning,9.0,9.0,9.0,9.0,36590,16159,7,0.0

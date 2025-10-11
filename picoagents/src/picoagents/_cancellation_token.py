@@ -48,13 +48,17 @@ class CancellationToken:
             else:
                 self._callbacks.append(callback)
 
-    def link_future(self, future: Union[Future[Any], asyncio.Future[Any], asyncio.Task[Any]]) -> Union[Future[Any], asyncio.Future[Any], asyncio.Task[Any]]:
+    def link_future(
+        self, future: Union[Future[Any], asyncio.Future[Any], asyncio.Task[Any]]
+    ) -> Union[Future[Any], asyncio.Future[Any], asyncio.Task[Any]]:
         """Link a pending async call to a token to allow its cancellation"""
         with self._lock:
             if self._cancelled:
                 future.cancel()
             else:
+
                 def _cancel() -> None:
                     future.cancel()
+
                 self._callbacks.append(_cancel)
         return future

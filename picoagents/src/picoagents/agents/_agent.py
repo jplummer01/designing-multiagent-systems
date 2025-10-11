@@ -5,75 +5,101 @@ This module implements a full-featured agent that can reason using LLMs,
 act through tools, maintain memory, and communicate with other agents.
 """
 
-import time
 import asyncio
-from typing import List, Union, Optional
+import time
 from collections.abc import AsyncGenerator
+from typing import Any, Dict, List, Optional, Union
 
-from ._base import BaseAgent
-from ..messages import Message, UserMessage, AssistantMessage, ToolMessage, ToolCallRequest
-from ..types import AgentResponse, AgentEvent, Usage
-from .._component_config import Component, ComponentModel
 from pydantic import BaseModel, Field
-from typing import Dict, Any
-from ..types import (
-    TaskStartEvent, TaskCompleteEvent, ModelCallEvent, ModelResponseEvent,
-    ToolCallEvent, ToolCallResponseEvent, ErrorEvent
-)
+
 from .._cancellation_token import CancellationToken
+from .._component_config import Component, ComponentModel
+from ..messages import (
+    AssistantMessage,
+    Message,
+    ToolCallRequest,
+    ToolMessage,
+    UserMessage,
+)
+from ..types import (
+    AgentEvent,
+    AgentResponse,
+    ChatCompletionChunk,
+    ErrorEvent,
+    ModelCallEvent,
+    ModelResponseEvent,
+    TaskCompleteEvent,
+    TaskStartEvent,
+    ToolCallEvent,
+    ToolCallResponseEvent,
+    Usage,
+)
+from ._base import AgentToolError, BaseAgent
 
 
 class AgentConfig(BaseModel):
     """Configuration for Agent serialization."""
+
     name: str
     description: str
     instructions: str
     model_client: ComponentModel  # Serialized model client
-    tools: List[ComponentModel] = Field(default_factory=list)  # Serialized tools (excluding FunctionTools)
-    memory: Optional[ComponentModel] = None  # Serialized memory  
+    tools: List[ComponentModel] = Field(
+        default_factory=list
+    )  # Serialized tools (excluding FunctionTools)
+    memory: Optional[ComponentModel] = None  # Serialized memory
     max_iterations: int = 10
-    output_format_schema: Optional[Dict[str, Any]] = None  # JSON schema for output format
+    output_format_schema: Optional[
+        Dict[str, Any]
+    ] = None  # JSON schema for output format
+    summarize_tool_result: bool = (
+        True  # If False, stop after tool execution without LLM summarization
+    )
 
 
 class Agent(Component[AgentConfig], BaseAgent):
     """
     A concrete agent implementation following stub.md specification.
-    
+
     This implementation demonstrates:
     - Integration with generative AI models for reasoning
     - Tool calling and execution for acting
-    - Memory management for adaptation  
+    - Memory management for adaptation
     - Message history for communication
     - Streaming support with events
     """
-    
+
     component_config_schema = AgentConfig
     component_type = "agent"
     component_provider_override = "picoagents.agents.Agent"
-    
-    async def run(self, task: Union[str, UserMessage, List[Message]], cancellation_token: Optional[CancellationToken] = None) -> AgentResponse:
+
+    async def run(
+        self,
+        task: Union[str, UserMessage, List[Message]],
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> AgentResponse:
         """
         Execute the agent's main reasoning and action loop.
-        
+
         This method internally uses run_stream() and filters for messages only,
         as specified in stub.md.
-        
+
         Args:
             task: The task or query for the agent to address
             cancellation_token: Optional token for cancelling execution
-            
+
         Returns:
             AgentResponse containing messages and usage statistics
         """
         final_response = None
         start_time = time.time()
-        
+
         try:
             async for item in self.run_stream(task, cancellation_token):
-                # Capture the final AgentResponse 
+                # Capture the final AgentResponse
                 if isinstance(item, AgentResponse):
                     final_response = item
-            
+
             # Return the final response from the stream, or create fallback
             if final_response:
                 return final_response
@@ -83,152 +109,333 @@ class Agent(Component[AgentConfig], BaseAgent):
                 return AgentResponse(
                     source=self.name,
                     messages=[],
-                    usage=Usage(duration_ms=duration_ms)
+                    finish_reason="no_response",
+                    usage=Usage(duration_ms=duration_ms),
                 )
-            
+
         except asyncio.CancelledError:
             # Re-raise cancellation for proper handling
             raise
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             usage_stats = Usage(duration_ms=duration_ms)
-            
+
             # Return error response
-            error_message = AssistantMessage(content=f"Error: {str(e)}", source=self.name)
+            error_message = AssistantMessage(
+                content=f"Error: {str(e)}", source=self.name
+            )
             return AgentResponse(
                 source=self.name,
-                messages=[error_message], usage=usage_stats)
-    
-    async def run_stream(self, task: Union[str, UserMessage, List[Message]], cancellation_token: Optional[CancellationToken] = None, verbose: bool = False) -> AsyncGenerator[Union[Message, AgentEvent, AgentResponse], None]:
+                messages=[error_message],
+                finish_reason="error",
+                usage=usage_stats,
+            )
+
+    async def run_stream(
+        self,
+        task: Union[str, UserMessage, List[Message]],
+        cancellation_token: Optional[CancellationToken] = None,
+        verbose: bool = False,
+        stream_tokens: bool = False,
+    ) -> AsyncGenerator[
+        Union[Message, AgentEvent, AgentResponse, ChatCompletionChunk], None
+    ]:
         """
         Execute the agent with streaming output.
-        
+
         Yields both Messages (for UI/conversation), Events (for debugging/observability),
         and final AgentResponse (for usage statistics).
-        
+
         Args:
             task: The task or query for the agent to address
             cancellation_token: Optional token for cancelling execution
-            
+            verbose: Enable detailed event logging
+            stream_tokens: Enable token-level streaming from LLM. Note: Automatically
+                          disabled if middleware is configured, as middleware requires
+                          complete requests/responses. A warning will be issued if this occurs.
+
         Yields:
-            Messages and events during execution
+            Messages, events, ChatCompletionChunks (if stream_tokens=True), and final AgentResponse
         """
         start_time = time.time()
         messages_yielded = []
         llm_calls = 0
         tokens_input = 0
         tokens_output = 0
-        
+
+        # Check if streaming should be disabled due to middleware
+        effective_stream_tokens = stream_tokens
+        if stream_tokens and len(self.middleware_chain.middlewares) > 0:
+            import warnings
+
+            warnings.warn(
+                "Token streaming disabled: middleware is configured. "
+                "Middleware requires complete requests/responses for processing. "
+                "To enable token streaming, remove middleware from the agent.",
+                UserWarning,
+                stacklevel=2,
+            )
+            effective_stream_tokens = False
+
         try:
             # Check for cancellation at the start
             if cancellation_token and cancellation_token.is_cancelled():
                 raise asyncio.CancelledError()
-            
+
             # 1. Convert task to message format
             task_messages = self._convert_task_to_messages(task)
-            
+
             # Yield the initial user message
             user_message = task_messages[0]
             yield user_message
             messages_yielded.append(user_message)
-            
+
             # Emit task start event
             if verbose:
-                yield TaskStartEvent(
-                    source=self.name,
-                    task=user_message.content
-                )
-            
+                yield TaskStartEvent(source=self.name, task=user_message.content)
+
             # 2. Prepare messages for LLM including system instructions, memory, history
             llm_messages = await self._prepare_llm_messages(task_messages)
-            
-            # Call callback if available
-            if self.callback:
-                await self.callback.before_model_call(llm_messages)
-            
+
             # 3. Make initial LLM call
             if verbose:
                 yield ModelCallEvent(
                     source=self.name,
                     input_messages=llm_messages,
-                    model=getattr(self.model_client, 'model', 'unknown')
+                    model=getattr(self.model_client, "model", "unknown"),
                 )
-            
-            # Initialize assistant_message to avoid unbound variable
-            assistant_message = AssistantMessage(content="Task completed", source=self.name)
-            
+
+            # Initialize assistant_message and completion reason
+            assistant_message = AssistantMessage(
+                content="Task completed", source=self.name
+            )
+            llm_finish_reason = "stop"  # Track the LLM's last finish reason
+
             iteration = 0
             while iteration < self.max_iterations:
                 try:
                     # Check for cancellation at the start of each iteration
                     if cancellation_token and cancellation_token.is_cancelled():
                         raise asyncio.CancelledError()
-                    
+
                     # Get tools for LLM if available
                     tools = self._get_tools_for_llm() if self.tools else None
-                    
-                    # Create and link LLM call task for cancellation
-                    llm_task = asyncio.create_task(
-                        self.model_client.create(llm_messages, tools=tools, output_format=self.output_format)
-                    )
-                    if cancellation_token:
-                        cancellation_token.link_future(llm_task)
-                    
-                    # Make LLM API call
-                    completion_result = await llm_task
-                    original_message = completion_result.message
-                    
-                    # Always create new AssistantMessage with source
+
+                    if effective_stream_tokens:
+                        # STREAMING PATH: Stream tokens and accumulate result
+                        accumulated_content = ""
+                        accumulated_tool_calls = {}  # Dict by call_id for final state
+                        last_call_id = (
+                            None  # Track last seen call_id for chunks without ID
+                        )
+                        structured_output = None
+
+                        async for chunk in self.model_client.create_stream(
+                            llm_messages, tools=tools, output_format=self.output_format
+                        ):
+                            # Check for cancellation during streaming
+                            if cancellation_token and cancellation_token.is_cancelled():
+                                raise asyncio.CancelledError()
+
+                            if not chunk.is_complete:
+                                # Yield chunk for real-time streaming
+                                yield chunk
+
+                                # Accumulate content
+                                if chunk.content:
+                                    accumulated_content += chunk.content
+
+                                # Store tool call data (each chunk has complete state)
+                                if chunk.tool_call_chunk:
+                                    call_id = chunk.tool_call_chunk.get("id")
+
+                                    # Update last_call_id when we see a new ID
+                                    if call_id:
+                                        last_call_id = call_id
+
+                                    # Use last_call_id for chunks without explicit ID
+                                    effective_call_id = call_id or last_call_id
+
+                                    if effective_call_id:
+                                        # Store the complete state from this chunk
+                                        accumulated_tool_calls[effective_call_id] = {
+                                            "id": effective_call_id,
+                                            "function": chunk.tool_call_chunk.get(
+                                                "function", {}
+                                            ),
+                                        }
+                            else:
+                                # Stream complete
+                                llm_finish_reason = (
+                                    "stop"  # Streaming typically ends with "stop"
+                                )
+                                break
+
+                        # Build tool calls from accumulated data
+                        tool_calls = []
+                        if accumulated_tool_calls:
+                            import json
+
+                            for call_id, tc_data in accumulated_tool_calls.items():
+                                try:
+                                    # Validate we have complete tool call data
+                                    if (
+                                        tc_data["function"]["name"]
+                                        and tc_data["function"]["arguments"]
+                                    ):
+                                        tool_calls.append(
+                                            ToolCallRequest(
+                                                tool_name=tc_data["function"]["name"],
+                                                parameters=json.loads(
+                                                    tc_data["function"]["arguments"]
+                                                ),
+                                                call_id=tc_data["id"],
+                                            )
+                                        )
+                                    else:
+                                        print(
+                                            f"Warning: Incomplete tool call data for {call_id}: {tc_data}"
+                                        )
+                                except (json.JSONDecodeError, KeyError) as e:
+                                    # Skip malformed tool calls
+                                    print(
+                                        f"Warning: Skipping malformed tool call {call_id}: {e}"
+                                    )
+                                    continue
+
+                        # Create completion result for consistency
+                        from ..types import ChatCompletionResult
+
+                        accumulated_message = AssistantMessage(
+                            content=accumulated_content,
+                            source="llm",
+                            tool_calls=tool_calls if tool_calls else None,
+                        )
+                        completion_result = ChatCompletionResult(
+                            message=accumulated_message,
+                            usage=Usage(
+                                duration_ms=0,  # Would need to track this in streaming
+                                llm_calls=1,
+                                tokens_input=0,  # Would need to track this from streaming
+                                tokens_output=len(accumulated_content.split())
+                                if accumulated_content
+                                else 0,
+                                tool_calls=len(tool_calls),
+                            ),
+                            model=getattr(self.model_client, "model", "unknown"),
+                            finish_reason=llm_finish_reason,
+                            structured_output=structured_output,
+                        )
+
+                        original_message = completion_result.message
+
+                    else:
+                        # NON-STREAMING PATH: Use middleware as before
+                        async def _model_call(messages):
+                            task = asyncio.create_task(
+                                self.model_client.create(
+                                    messages,
+                                    tools=tools,
+                                    output_format=self.output_format,
+                                )
+                            )
+                            if cancellation_token:
+                                cancellation_token.link_future(task)
+                            return await task
+
+                        completion_result = await self.middleware_chain.execute(
+                            operation="model_call",
+                            agent_name=self.name,
+                            agent_context=self.context,
+                            data=llm_messages,
+                            func=_model_call,
+                        )
+                        original_message = completion_result.message
+                        llm_finish_reason = (
+                            completion_result.finish_reason
+                        )  # Capture LLM finish reason
+
+                    # Always create new AssistantMessage with source (same for both paths)
                     assistant_message = AssistantMessage(
                         content=original_message.content,
                         source=self.name,
                         tool_calls=original_message.tool_calls,
-                        structured_content=completion_result.structured_output if completion_result.structured_output else None
+                        structured_content=completion_result.structured_output
+                        if completion_result.structured_output
+                        else None,
                     )
-                    
+
                     llm_calls += 1
-                    
+
                     # Track token usage if available
-                    if hasattr(completion_result, 'usage'):
-                        tokens_input += getattr(completion_result.usage, 'tokens_input', 0)
-                        tokens_output += getattr(completion_result.usage, 'tokens_output', 0)
-                    
-                    # Yield the assistant response
-                    yield assistant_message
-                    messages_yielded.append(assistant_message)
-                    
+                    if hasattr(completion_result, "usage"):
+                        tokens_input += getattr(
+                            completion_result.usage, "tokens_input", 0
+                        )
+                        tokens_output += getattr(
+                            completion_result.usage, "tokens_output", 0
+                        )
+
+                    # Only yield assistant messages that don't have tool calls
+                    # Messages with tool calls are internal orchestration, we'll yield the final response after tools execute
+                    if not assistant_message.tool_calls:
+                        yield assistant_message
+                        messages_yielded.append(assistant_message)
+
                     # Emit model response event
                     if verbose:
                         yield ModelResponseEvent(
                             source=self.name,
                             response=assistant_message.content,
-                            has_tool_calls=assistant_message.tool_calls is not None
+                            has_tool_calls=assistant_message.tool_calls is not None,
                         )
-                    
-                    # Add assistant message to history
-                    self.message_history.append(assistant_message)
+
+                    # Add assistant message to context and working messages
+                    self.context.add_message(assistant_message)
                     llm_messages.append(assistant_message)
-                    
-                    # Call callback if available
-                    if self.callback:
-                        await self.callback.after_model_call(completion_result)
-                    
+
                     # 4. Handle tool calls if present
                     if assistant_message.tool_calls:
-                        for tool_call in assistant_message.tool_calls:
-                            async for item in self._execute_tool_call(tool_call, llm_messages, cancellation_token):
+                        # Check if we can execute tools in parallel (multiple independent calls)
+                        if len(assistant_message.tool_calls) > 1:
+                            # Execute tools in parallel using asyncio.gather
+                            async for item in self._execute_tool_calls_parallel(
+                                assistant_message.tool_calls,
+                                llm_messages,
+                                cancellation_token,
+                            ):
                                 yield item
                                 # Track messages for final response
-                                if isinstance(item, (UserMessage, AssistantMessage, ToolMessage)):
+                                if isinstance(
+                                    item, (UserMessage, AssistantMessage, ToolMessage)
+                                ):
                                     messages_yielded.append(item)
-                        
+                        else:
+                            # Single tool call - execute sequentially
+                            for tool_call in assistant_message.tool_calls:
+                                async for item in self._execute_tool_call(
+                                    tool_call, llm_messages, cancellation_token
+                                ):
+                                    yield item
+                                    # Track messages for final response
+                                    if isinstance(
+                                        item,
+                                        (UserMessage, AssistantMessage, ToolMessage),
+                                    ):
+                                        messages_yielded.append(item)
+
+                        # Check if we should skip LLM summarization
+                        if not self.summarize_tool_result:
+                            # Stop after tool execution without LLM call
+                            break
+
                         # Continue loop for next LLM call after tool execution
                         iteration += 1
                         continue
-                    
+
                     # No tool calls, we're done
                     break
-                        
+
                 except asyncio.CancelledError:
                     # Re-raise cancellation for proper handling
                     raise
@@ -236,184 +443,332 @@ class Agent(Component[AgentConfig], BaseAgent):
                     error_event = ErrorEvent(
                         source=self.name,
                         error_message=str(e),
-                        error_type=type(e).__name__
+                        error_type=type(e).__name__,
                     )
                     yield error_event
-                    
+
                     # Yield error message
-                    error_message = AssistantMessage(content=f"I encountered an error: {str(e)}", source=self.name)
+                    error_message = AssistantMessage(
+                        content=f"I encountered an error: {str(e)}", source=self.name
+                    )
                     yield error_message
                     messages_yielded.append(error_message)
                     break
-            
+
             # Emit task completion event
             if verbose:
                 yield TaskCompleteEvent(
-                    source=self.name,
-                    result=assistant_message.content
+                    source=self.name, result=assistant_message.content
                 )
-            
+
+            # Determine finish reason based on LLM completion and agent state
+            if iteration >= self.max_iterations:
+                finish_reason = "max_iterations"
+            else:
+                # Use the LLM's finish reason
+                finish_reason = llm_finish_reason
+
             # Yield final AgentResponse with complete conversation and usage stats
             duration_ms = int((time.time() - start_time) * 1000)
-            tool_calls = sum(1 for msg in messages_yielded if isinstance(msg, ToolMessage))
-            
+            tool_calls = sum(
+                1 for msg in messages_yielded if isinstance(msg, ToolMessage)
+            )
+
             final_response = AgentResponse(
                 source=self.name,
                 messages=messages_yielded,
+                finish_reason=finish_reason,
                 usage=Usage(
                     duration_ms=duration_ms,
                     llm_calls=llm_calls,
                     tokens_input=tokens_input,
                     tokens_output=tokens_output,
-                    tool_calls=tool_calls
-                )
+                    tool_calls=tool_calls,
+                ),
             )
             yield final_response
-            
+
         except asyncio.CancelledError:
             # Handle cancellation gracefully
             yield ErrorEvent(
                 source=self.name,
                 error_message="Agent execution was cancelled",
                 error_type="CancelledError",
-                is_recoverable=False
+                is_recoverable=False,
             )
-            
+
             # Yield final cancellation message
-            cancel_message = AssistantMessage(content="Agent execution was cancelled", source=self.name)
+            cancel_message = AssistantMessage(
+                content="Agent execution was cancelled", source=self.name
+            )
             yield cancel_message
             messages_yielded.append(cancel_message)
-            
+
             # Yield final AgentResponse for cancelled execution
             duration_ms = int((time.time() - start_time) * 1000)
-            tool_calls = sum(1 for msg in messages_yielded if isinstance(msg, ToolMessage))
-            
+            tool_calls = sum(
+                1 for msg in messages_yielded if isinstance(msg, ToolMessage)
+            )
+
             cancel_response = AgentResponse(
                 source=self.name,
                 messages=messages_yielded,
+                finish_reason="cancelled",
                 usage=Usage(
                     duration_ms=duration_ms,
                     llm_calls=llm_calls,
                     tokens_input=tokens_input,
                     tokens_output=tokens_output,
-                    tool_calls=tool_calls
-                )
+                    tool_calls=tool_calls,
+                ),
             )
             yield cancel_response
-            
+
             # Re-raise the cancellation
             raise
-            
+
         except Exception as e:
             # Emit fatal error event
             yield ErrorEvent(
                 source=self.name,
                 error_message=str(e),
                 error_type=type(e).__name__,
-                is_recoverable=False
+                is_recoverable=False,
             )
-            
+
             # Yield final error message
-            error_message = AssistantMessage(content=f"Fatal error: {str(e)}", source=self.name)
+            error_message = AssistantMessage(
+                content=f"Fatal error: {str(e)}", source=self.name
+            )
             yield error_message
             messages_yielded.append(error_message)
-            
+
             # Yield final AgentResponse even for errors
             duration_ms = int((time.time() - start_time) * 1000)
-            tool_calls = sum(1 for msg in messages_yielded if isinstance(msg, ToolMessage))
-            
+            tool_calls = sum(
+                1 for msg in messages_yielded if isinstance(msg, ToolMessage)
+            )
+
             error_response = AgentResponse(
                 source=self.name,
                 messages=messages_yielded,
+                finish_reason="error",
                 usage=Usage(
                     duration_ms=duration_ms,
                     llm_calls=llm_calls,
                     tokens_input=tokens_input,
                     tokens_output=tokens_output,
-                    tool_calls=tool_calls
-                )
+                    tool_calls=tool_calls,
+                ),
             )
             yield error_response
-    
-    async def _execute_tool_call(self, tool_call: ToolCallRequest, llm_messages: List[Message], cancellation_token: Optional[CancellationToken] = None) -> AsyncGenerator[Union[Message, AgentEvent], None]:
+
+    async def _execute_tool_calls_parallel(
+        self,
+        tool_calls: List[ToolCallRequest],
+        llm_messages: List[Message],
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> AsyncGenerator[Union[Message, AgentEvent], None]:
+        """
+        Execute multiple tool calls in parallel for improved performance.
+
+        This method uses asyncio.gather to execute independent tool calls concurrently,
+        following Anthropic's best practice of parallel tool execution for Claude 4 models.
+
+        Args:
+            tool_calls: List of tool calls to execute in parallel
+            llm_messages: Current message history for context
+            cancellation_token: Optional token for cancelling execution
+
+        Yields:
+            Events and ToolMessages from all tool executions
+        """
+        # Check for cancellation before starting
+        if cancellation_token and cancellation_token.is_cancelled():
+            raise asyncio.CancelledError()
+
+        # Collect all items from parallel execution
+        async def collect_tool_results(tool_call):
+            """Helper to collect all items from a single tool execution."""
+            items = []
+            async for item in self._execute_tool_call(
+                tool_call, llm_messages, cancellation_token
+            ):
+                items.append(item)
+            return items
+
+        try:
+            # Execute all tool calls in parallel
+            results = await asyncio.gather(
+                *[collect_tool_results(tc) for tc in tool_calls], return_exceptions=True
+            )
+
+            # Yield all items in order (tool events, then messages)
+            # First yield all tool call events
+            for items in results:
+                if isinstance(items, Exception):
+                    # Handle exception from one of the tool calls
+                    error_event = ErrorEvent(
+                        source=self.name,
+                        error_message=str(items),
+                        error_type=type(items).__name__,
+                    )
+                    yield error_event
+                    continue
+
+                # Yield items from this tool execution
+                for item in items:
+                    yield item
+
+        except asyncio.CancelledError:
+            # Handle cancellation for all parallel calls
+            raise
+        except Exception as e:
+            # Handle any unexpected errors
+            error_event = ErrorEvent(
+                source=self.name,
+                error_message=f"Parallel tool execution failed: {str(e)}",
+                error_type=type(e).__name__,
+            )
+            yield error_event
+            raise
+
+    async def _execute_tool_call(
+        self,
+        tool_call: ToolCallRequest,
+        llm_messages: List[Message],
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> AsyncGenerator[Union[Message, AgentEvent], None]:
         """
         Execute a single tool call and yield events and result message.
-        
+
         Args:
             tool_call: The tool call to execute
             llm_messages: Current message history for context
             cancellation_token: Optional token for cancelling execution
-            
+
         Yields:
             Events and the final ToolMessage
         """
         # Check for cancellation before tool execution
         if cancellation_token and cancellation_token.is_cancelled():
             raise asyncio.CancelledError()
-        
+
         # Emit tool call event
         tool_event = ToolCallEvent(
             source=self.name,
             tool_name=tool_call.tool_name,
             parameters=tool_call.parameters,
-            call_id=tool_call.call_id
+            call_id=tool_call.call_id,
         )
         yield tool_event
-        
+
         try:
-            # Call callback if available
-            if self.callback:
-                await self.callback.before_tool_call(tool_call)
-            
-            # Find and execute the tool
+            # Find the tool
             tool = self._find_tool(tool_call.tool_name)
             if tool is None:
-                error_msg = f"Tool '{tool_call.tool_name}' not found"
+                # Tool not found
                 result = ToolMessage(
-                    content=error_msg,
+                    content=f"Tool '{tool_call.tool_name}' not found",
                     source=self.name,
                     tool_call_id=tool_call.call_id,
                     tool_name=tool_call.tool_name,
                     success=False,
-                    error=error_msg
+                    error=f"Tool '{tool_call.tool_name}' not found",
                 )
+                # Emit tool response event
+                tool_response_event = ToolCallResponseEvent(
+                    source=self.name, call_id=tool_call.call_id, result=None
+                )
+                yield tool_response_event
+
+                # Add tool result to context and working messages
+                self.context.add_message(result)
+                llm_messages.append(result)
+
+                # Yield the final result message
+                yield result
+                return
+
+            # Check if tool supports streaming
+            if tool.supports_streaming():
+                # Execute streaming tool
                 tool_result = None
+                async for item in tool.execute_stream(
+                    tool_call.parameters, cancellation_token
+                ):
+                    from ..messages import Message
+                    from ..types import ToolResult
+
+                    if isinstance(item, ToolResult):
+                        # This is the final result - convert to ToolMessage
+                        tool_result = item
+                        result = ToolMessage(
+                            content=str(item.result)
+                            if item.success
+                            else f"Error: {item.error}",
+                            source=self.name,
+                            tool_call_id=tool_call.call_id,
+                            tool_name=tool_call.tool_name,
+                            success=item.success,
+                            error=item.error,
+                        )
+                        # Add to context and messages
+                        self.context.add_message(result)
+                        llm_messages.append(result)
+                        yield result
+                    elif isinstance(item, Message):
+                        # Forward streaming messages from tool directly
+                        yield item
+                    else:
+                        # Forward other events
+                        yield item
+
+                # Emit tool response event
+                tool_response_event = ToolCallResponseEvent(
+                    source=self.name, call_id=tool_call.call_id, result=tool_result
+                )
+                yield tool_response_event
             else:
-                # Execute the tool with cancellation support
-                tool_task = asyncio.create_task(tool.execute(tool_call.parameters))
-                if cancellation_token:
-                    cancellation_token.link_future(tool_task)
-                
-                tool_result = await tool_task
-                
+                # Traditional tool execution through middleware
+                async def _tool_call(data):
+                    task = asyncio.create_task(tool.execute(data.parameters))
+                    if cancellation_token:
+                        cancellation_token.link_future(task)
+                    return await task
+
+                tool_result = await self.middleware_chain.execute(
+                    operation="tool_call",
+                    agent_name=self.name,
+                    agent_context=self.context,
+                    data=tool_call,
+                    func=_tool_call,
+                )
+
                 result = ToolMessage(
-                    content=str(tool_result.result) if tool_result.success else f"Error: {tool_result.error}",
+                    content=str(tool_result.result)
+                    if tool_result.success
+                    else f"Error: {tool_result.error}",
                     source=self.name,
                     tool_call_id=tool_call.call_id,
                     tool_name=tool_call.tool_name,
                     success=tool_result.success,
-                    error=tool_result.error
+                    error=tool_result.error,
                 )
-                
-                # Call callback if available
-                if self.callback:
-                    await self.callback.after_tool_call(tool_call, tool_result)
-            
-            # Emit tool response event (with proper None handling)
-            tool_response_event = ToolCallResponseEvent(
-                source=self.name,
-                call_id=tool_call.call_id,
-                result=tool_result  # May be None, but that's okay
-            )
-            yield tool_response_event
-            
-            # Add tool result to message history
-            self.message_history.append(result)
-            llm_messages.append(result)
-            
-            # Yield the final result message
-            yield result
-            
+
+                # Emit tool response event
+                tool_response_event = ToolCallResponseEvent(
+                    source=self.name, call_id=tool_call.call_id, result=tool_result
+                )
+                yield tool_response_event
+
+                # Add tool result to context and working messages
+                self.context.add_message(result)
+                llm_messages.append(result)
+
+                # Yield the final result message
+                yield result
+
         except asyncio.CancelledError:
             # Handle tool cancellation
             error_msg = "Tool execution was cancelled"
@@ -423,19 +778,19 @@ class Agent(Component[AgentConfig], BaseAgent):
                 tool_call_id=tool_call.call_id,
                 tool_name=tool_call.tool_name,
                 success=False,
-                error=error_msg
+                error=error_msg,
             )
-            
-            # Add error result to message history
-            self.message_history.append(error_result)
+
+            # Add error result to context and working messages
+            self.context.add_message(error_result)
             llm_messages.append(error_result)
-            
+
             # Yield the error result
             yield error_result
-            
+
             # Re-raise cancellation
             raise
-            
+
         except Exception as e:
             error_msg = f"Tool execution failed: {str(e)}"
             error_result = ToolMessage(
@@ -444,23 +799,23 @@ class Agent(Component[AgentConfig], BaseAgent):
                 tool_call_id=tool_call.call_id,
                 tool_name=tool_call.tool_name,
                 success=False,
-                error=error_msg
+                error=error_msg,
             )
-            
-            # Add error result to message history
-            self.message_history.append(error_result)
+
+            # Add error result to context and working messages
+            self.context.add_message(error_result)
             llm_messages.append(error_result)
-            
+
             # Yield the error result
             yield error_result
-    
+
     def _to_config(self) -> AgentConfig:
         """Convert agent to configuration for serialization."""
         from ..tools import FunctionTool  # Import here to avoid circular import
-        
+
         # Serialize model client
         model_client_config = self.model_client.dump_component()
-        
+
         # Serialize tools (skip FunctionTools as they can't be serialized)
         tool_configs = []
         for tool in self.tools:
@@ -472,7 +827,7 @@ class Agent(Component[AgentConfig], BaseAgent):
             except NotImplementedError:
                 # Skip tools that don't support serialization
                 continue
-        
+
         # Serialize memory if present
         memory_config = None
         if self.memory:
@@ -481,7 +836,7 @@ class Agent(Component[AgentConfig], BaseAgent):
             except NotImplementedError:
                 # Skip memory that doesn't support serialization
                 pass
-        
+
         # Serialize output format schema if present
         output_format_schema = None
         if self.output_format:
@@ -490,7 +845,7 @@ class Agent(Component[AgentConfig], BaseAgent):
             except Exception:
                 # Skip if schema extraction fails
                 pass
-        
+
         return AgentConfig(
             name=self.name,
             description=self.description,
@@ -499,20 +854,22 @@ class Agent(Component[AgentConfig], BaseAgent):
             tools=tool_configs,
             memory=memory_config,
             max_iterations=self.max_iterations,
-            output_format_schema=output_format_schema
+            output_format_schema=output_format_schema,
+            summarize_tool_result=self.summarize_tool_result,
         )
-    
+
     @classmethod
     def _from_config(cls, config: AgentConfig) -> "Agent":
         """Create agent from configuration."""
-        from ..llm import BaseChatCompletionClient
-        from ..tools import BaseTool
-        from ..memory import BaseMemory
         from pydantic import create_model
-        
+
+        from ..llm import BaseChatCompletionClient
+        from ..memory import BaseMemory
+        from ..tools import BaseTool
+
         # Deserialize model client
         model_client = BaseChatCompletionClient.load_component(config.model_client)
-        
+
         # Deserialize tools
         tools = []
         for tool_config in config.tools:
@@ -522,7 +879,7 @@ class Agent(Component[AgentConfig], BaseAgent):
             except Exception:
                 # Skip tools that fail to deserialize
                 continue
-        
+
         # Deserialize memory
         memory = None
         if config.memory:
@@ -531,26 +888,29 @@ class Agent(Component[AgentConfig], BaseAgent):
             except Exception:
                 # Skip memory that fails to deserialize
                 pass
-        
+
         # Recreate output format from schema if present
         output_format = None
         if config.output_format_schema:
             try:
                 # Extract field definitions from schema (simplified approach)
-                properties = config.output_format_schema.get('properties', {})
+                properties = config.output_format_schema.get("properties", {})
                 field_definitions = {}
                 for field_name, field_schema in properties.items():
                     # Use Any type for simplicity - could be enhanced later
                     from typing import Any
+
                     field_definitions[field_name] = (Any, None)
-                
+
                 if field_definitions:
-                    schema_title = config.output_format_schema.get('title', 'OutputFormat')
+                    schema_title = config.output_format_schema.get(
+                        "title", "OutputFormat"
+                    )
                     output_format = create_model(schema_title, **field_definitions)
             except Exception:
                 # Skip if recreation fails
                 pass
-        
+
         return cls(
             name=config.name,
             description=config.description,
@@ -559,5 +919,6 @@ class Agent(Component[AgentConfig], BaseAgent):
             tools=tools,
             memory=memory,
             max_iterations=config.max_iterations,
-            output_format=output_format
+            output_format=output_format,
+            summarize_tool_result=config.summarize_tool_result,
         )

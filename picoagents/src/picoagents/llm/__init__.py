@@ -5,20 +5,22 @@ Provides unified interface for different language model providers
 with standardized response formats and error handling.
 """
 
+from ._azure_openai import AzureOpenAIChatCompletionClient
 from ._base import (
+    AuthenticationError,
     BaseChatCompletionClient,
     BaseChatCompletionError,
+    InvalidRequestError,
     RateLimitError,
-    AuthenticationError,
-    InvalidRequestError
 )
 from ._openai import OpenAIChatCompletionClient
 
 __all__ = [
     "BaseChatCompletionClient",
     "BaseChatCompletionError",
-    "RateLimitError", 
+    "RateLimitError",
     "AuthenticationError",
     "InvalidRequestError",
-    "OpenAIChatCompletionClient"
+    "OpenAIChatCompletionClient",
+    "AzureOpenAIChatCompletionClient",
 ]

@@ -10,12 +10,12 @@ A minimal multi-agent framework for educational purposes, accompanying the book 
 
 Most multi-agent tutorials show you toy examples. This book—and PicoAgents—shows you how to build production systems from first principles:
 
-| What You Learn | What You Build | Real Impact |
-|----------------|----------------|-------------|
-| **Agent Architecture** | Complete `Agent` class with reasoning, tools, memory | Deploy agents that solve actual tasks |
-| **Workflow Orchestration** | Type-safe, streaming workflow engine | Build reliable multi-step AI systems |
-| **Autonomous Coordination** | AI-driven agent orchestration patterns | Create adaptive, self-organizing teams |
-| **Production Deployment** | Evaluation, monitoring, error handling | Ship multi-agent systems with confidence |
+| What You Learn              | What You Build                                       | Real Impact                              |
+| --------------------------- | ---------------------------------------------------- | ---------------------------------------- |
+| **Agent Architecture**      | Complete `Agent` class with reasoning, tools, memory | Deploy agents that solve actual tasks    |
+| **Workflow Orchestration**  | Type-safe, streaming workflow engine                 | Build reliable multi-step AI systems     |
+| **Autonomous Coordination** | AI-driven agent orchestration patterns               | Create adaptive, self-organizing teams   |
+| **Production Deployment**   | Evaluation, monitoring, error handling               | Ship multi-agent systems with confidence |
 
 - **Battle-tested patterns**: Implements proven architectures from production multi-agent systems
 - **Complete implementations**: No black boxes—see exactly how agents, workflows, and orchestration work
@@ -34,6 +34,15 @@ cd picoagents
 pip install -e .
 ```
 
+### API Key Setup
+
+Copy the example environment file and add your API keys:
+
+```bash
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
+```
+
 ## Quick Start
 
 ### Building Your First Agent (Chapter 4)
@@ -47,7 +56,7 @@ def get_weather(location: str) -> str:
 
 # Create an agent - that's it!
 agent = Agent(
-    name="assistant", 
+    name="assistant",
     instructions="You are helpful. Use tools when appropriate.",
     model_client=OpenAIChatCompletionClient(model="gpt-4o-mini"),
     tools=[get_weather]  # Functions become tools automatically!
@@ -96,7 +105,7 @@ researcher = Agent(
 )
 
 writer = Agent(
-    name="writer", 
+    name="writer",
     instructions="Write engaging content based on research.",
     model_client=OpenAIChatCompletionClient(model="gpt-4o-mini")
 )
@@ -114,19 +123,19 @@ result = await orchestrator.orchestrate("Write about renewable energy trends")
 
 ## What You'll Learn & Build
 
-| Chapter | Concept | Implementation | Example |
-|---------|---------|----------------|---------|
-| **Ch 4** | Agent Architecture | `Agent` with reasoning, tools, memory | [`01_basic_agent.py`](examples/01_basic_agent.py) |
-| **Ch 5** | Workflow Orchestration | Type-safe `Workflow` + `WorkflowRunner` | Sequential, conditional, parallel patterns |
-| **Ch 6** | Autonomous Coordination | `RoundRobinOrchestrator`, `AIOrchestrator` | [`02_roundrobin_orchestration.py`](examples/02_roundrobin_orchestration.py) |
-| **Ch 8** | Evaluation Systems | Testing framework + metrics | Production-ready evaluation patterns |
-| **Ch 12** | Real-World Apps | Complete case study | Multi-perspective information processing |
+| Chapter   | Concept                 | Implementation                             | Example                                                                          |
+| --------- | ----------------------- | ------------------------------------------ | -------------------------------------------------------------------------------- |
+| **Ch 4**  | Agent Architecture      | `Agent` with reasoning, tools, memory      | [`agents/`](examples/agents/) - Basic agents, tools, memory                      |
+| **Ch 5**  | Workflow Orchestration  | Type-safe `Workflow` + `WorkflowRunner`    | [`workflows/`](examples/workflows/) - Sequential, conditional, parallel          |
+| **Ch 6**  | Autonomous Coordination | `RoundRobinOrchestrator`, `AIOrchestrator` | [`orchestration/`](examples/orchestration/) - Round-robin, AI-driven, plan-based |
+| **Ch 8**  | Evaluation Systems      | Testing framework + metrics                | [`evaluation/`](examples/evaluation/) - Agent evaluation patterns                |
+| **Ch 12** | Real-World Apps         | Complete case study                        | Multi-perspective information processing                                         |
 
 ### Core Architecture
 
 **Agent Foundation**: Every agent implements the universal pattern: `reason → act → communicate → adapt`
 
-**Workflow Control**: Deterministic execution with type safety and streaming observability  
+**Workflow Control**: Deterministic execution with type safety and streaming observability
 
 **Autonomous Orchestration**: AI-driven coordination with robust termination conditions
 
@@ -150,31 +159,36 @@ src/picoagents/
 
 ## Examples
 
-Complete implementations for every chapter concept:
+Complete implementations organized by concept:
 
-- [`01_basic_agent.py`](examples/01_basic_agent.py) - Building your first agent (Chapter 4)
-- [`02_roundrobin_orchestration.py`](examples/02_roundrobin_orchestration.py) - Round-robin coordination (Chapter 6)  
-- [`03_ai_orchestration_example.py`](examples/03_ai_orchestration_example.py) - AI-driven orchestration (Chapter 6)
-- [`04_plan_based_orchestration_example.py`](examples/04_plan_based_orchestration_example.py) - Plan-based coordination (Chapter 6)
-- [`05_component_serialization.py`](examples/05_component_serialization.py) - Production serialization patterns
+- **Agents** ([`agents/`](examples/agents/)) - Basic agents, tools, memory, structured output (Chapter 4)
+- **Orchestration** ([`orchestration/`](examples/orchestration/)) - Round-robin, AI-driven, plan-based coordination (Chapter 6)
+- **Workflows** ([`workflows/`](examples/workflows/)) - Sequential, conditional, parallel execution patterns (Chapter 5)
+- **Evaluation** ([`evaluation/`](examples/evaluation/)) - Agent evaluation and metrics (Chapter 8)
 
-**📖 Get the Book**: Each example directly corresponds to book chapters with detailed explanations, trade-offs, and production considerations.
+**📖 Get the Book**: Each example directory corresponds to book chapters with detailed explanations, trade-offs, and production considerations.
 
 ## Development
 
+Install with development dependencies:
+
 ```bash
-# Install development dependencies
 pip install -e ".[dev]"
+```
 
-# Run type checking
-pyright
+### Code Quality Commands
 
-# Run tests
-pytest
+```bash
+# Type checking
+python -m mypy --show-error-codes --ignore-missing-imports src/
+python -m pyright src/ examples/ tests/
 
-# Format code
-black src/
-isort src/
+# Code formatting
+python -m black src/ examples/ tests/
+python -m isort src/ examples/ tests/
+
+# Testing
+python -m pytest tests/
 ```
 
 ## Requirements
@@ -202,7 +216,7 @@ MIT License - see LICENSE file for details.
 
 This framework implements every concept from the book with production-ready code. The book provides:
 
-- **Deep explanations** of when and why to use each pattern  
+- **Deep explanations** of when and why to use each pattern
 - **Trade-off analysis** for production decision-making
 - **Real-world case studies** with complete implementations
 - **Evaluation frameworks** for measuring system performance

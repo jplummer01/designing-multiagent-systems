@@ -3,7 +3,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+CLAUDE.md
 *.DS_Store
 
 */work_dir
@@ -12,7 +12,11 @@ __pycache__/
 chainlit.md
 *.env
 /data*
+.run_samples.sh 
+tests/test_fresh_install.sh
 
+
+test_fresh_install.sh
 # C extensions
 *.so
 

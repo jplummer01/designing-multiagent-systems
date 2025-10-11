@@ -14,9 +14,14 @@ import warnings
 from typing import Any, ClassVar, Dict, Generic, Literal, Type, Union, cast, overload
 
 from pydantic import BaseModel
-from typing_extensions import Self, TypeVar, TypeGuard
+from typing_extensions import Self, TypeGuard, TypeVar
 
-ComponentType = Union[Literal["model", "agent", "tool", "termination", "orchestrator", "step", "workflow"], str]
+ComponentType = Union[
+    Literal[
+        "model", "agent", "tool", "termination", "orchestrator", "step", "workflow"
+    ],
+    str,
+]
 ConfigT = TypeVar("ConfigT", bound=BaseModel)
 FromConfigT = TypeVar("FromConfigT", bound=BaseModel, contravariant=True)
 ToConfigT = TypeVar("ToConfigT", bound=BaseModel, covariant=True)
@@ -27,12 +32,12 @@ T = TypeVar("T", bound=BaseModel, covariant=True)
 class ComponentModel(BaseModel):
     """
     Model class for a serializable component.
-    
+
     Contains all information required to instantiate a component, including:
     - Provider information for class loading
     - Type and version metadata
     - Configuration data for instantiation
-    
+
     This enables components to be saved as JSON configurations and loaded
     back as instances, supporting workflow persistence and UI integration.
     """
@@ -91,50 +96,45 @@ WELL_KNOWN_PROVIDERS = {
     "openai_chat_completion_client": "picoagents.llm.OpenAIChatCompletionClient",
     "OpenAIChatCompletionClient": "picoagents.llm.OpenAIChatCompletionClient",
     "model_client": "picoagents.llm.OpenAIChatCompletionClient",  # Default model client
-    
     # PicoAgents Agents
     "agent": "picoagents.agents.Agent",
     "Agent": "picoagents.agents.Agent",
-    
     # PicoAgents Memory
     "list_memory": "picoagents.memory.ListMemory",
-    "ListMemory": "picoagents.memory.ListMemory", 
+    "ListMemory": "picoagents.memory.ListMemory",
     "file_memory": "picoagents.memory.FileMemory",
     "FileMemory": "picoagents.memory.FileMemory",
     "memory": "picoagents.memory.ListMemory",  # Default memory
-    
     # PicoAgents Termination
     "max_message_termination": "picoagents.termination.MaxMessageTermination",
     "MaxMessageTermination": "picoagents.termination.MaxMessageTermination",
-    "text_mention_termination": "picoagents.termination.TextMentionTermination", 
+    "text_mention_termination": "picoagents.termination.TextMentionTermination",
     "TextMentionTermination": "picoagents.termination.TextMentionTermination",
     "composite_termination": "picoagents.termination.CompositeTermination",
     "CompositeTermination": "picoagents.termination.CompositeTermination",
     "termination": "picoagents.termination.MaxMessageTermination",  # Default termination
-    
-    # PicoAgents Orchestrators  
+    # PicoAgents Orchestrators
     "round_robin_orchestrator": "picoagents.orchestration.RoundRobinOrchestrator",
     "RoundRobinOrchestrator": "picoagents.orchestration.RoundRobinOrchestrator",
     "ai_orchestrator": "picoagents.orchestration.AIOrchestrator",
     "AIOrchestrator": "picoagents.orchestration.AIOrchestrator",
     "orchestrator": "picoagents.orchestration.RoundRobinOrchestrator",  # Default orchestrator
-    
     # Workflow Components
-    "workflow": "picoagents.orchestration.workflow.Workflow",
-    "Workflow": "picoagents.orchestration.workflow.Workflow",
-    "picoagent_step": "picoagents.orchestration.workflow.PicoAgentStep",
-    "PicoAgentStep": "picoagents.orchestration.workflow.PicoAgentStep",
+    "workflow": "picoagents.workflow.Workflow",
+    "Workflow": "picoagents.workflow.Workflow",
+    "picoagent_step": "picoagents.workflow.PicoAgentStep",
+    "PicoAgentStep": "picoagents.workflow.PicoAgentStep",
 }
 
 
 class ComponentFromConfig(Generic[FromConfigT]):
     """
     Mixin class for components that can be loaded from configuration.
-    
+
     Implement this interface to enable your component to be instantiated
     from a serialized configuration object.
     """
-    
+
     @classmethod
     def _from_config(cls, config: FromConfigT) -> Self:
         """
@@ -166,7 +166,9 @@ class ComponentFromConfig(Generic[FromConfigT]):
 
         :meta public:
         """
-        raise NotImplementedError("This component does not support loading from past versions")
+        raise NotImplementedError(
+            "This component does not support loading from past versions"
+        )
 
 
 class ComponentToConfig(Generic[ToConfigT]):
@@ -250,15 +252,23 @@ ExpectedType = TypeVar("ExpectedType")
 class ComponentLoader:
     @overload
     @classmethod
-    def load_component(cls, model: ComponentModel | Dict[str, Any], expected: None = None) -> Self: ...
+    def load_component(
+        cls, model: ComponentModel | Dict[str, Any], expected: None = None
+    ) -> Self:
+        ...
 
     @overload
     @classmethod
-    def load_component(cls, model: ComponentModel | Dict[str, Any], expected: Type[ExpectedType]) -> ExpectedType: ...
+    def load_component(
+        cls, model: ComponentModel | Dict[str, Any], expected: Type[ExpectedType]
+    ) -> ExpectedType:
+        ...
 
     @classmethod
     def load_component(
-        cls, model: ComponentModel | Dict[str, Any], expected: Type[ExpectedType] | None = None
+        cls,
+        model: ComponentModel | Dict[str, Any],
+        expected: Type[ExpectedType] | None = None,
     ) -> Self | ExpectedType:
         """Load a component from a model. Intended to be used with the return type of :py:meth:`picoagents.ComponentConfig.dump_component`.
 
@@ -320,7 +330,9 @@ class ComponentLoader:
         if not hasattr(component_class, "component_type"):
             raise AttributeError("component_type not defined")
 
-        loaded_config_version = loaded_model.component_version or component_class.component_version
+        loaded_config_version = (
+            loaded_model.component_version or component_class.component_version
+        )
         if loaded_config_version < component_class.component_version:
             try:
                 instance = component_class._from_config_past_version(loaded_model.config, loaded_config_version)  # type: ignore
@@ -365,7 +377,8 @@ class ComponentSchemaType(Generic[ConfigT]):
                     )
 
 
-class ComponentBase(ComponentToConfig[ConfigT], ComponentLoader, Generic[ConfigT]): ...
+class ComponentBase(ComponentToConfig[ConfigT], ComponentLoader, Generic[ConfigT]):
+    ...
 
 
 class Component(
@@ -375,7 +388,7 @@ class Component(
 ):
     """
     Base class for serializable PicoAgents components.
-    
+
     To create a serializable component:
     1. Inherit from this class and ComponentBase
     2. Define component_config_schema (Pydantic model for config)
@@ -409,7 +422,7 @@ class Component(
             @classmethod
             def _from_config(cls, config: MyConfig) -> MyComponent:
                 return cls(name=config.name, value=config.value)
-    
+
     This enables the component to be serialized via dump_component()
     and loaded back via load_component().
     """
@@ -431,7 +444,8 @@ class _ConcreteComponent(
     ComponentToConfig[ConfigT],
     ComponentLoader,
     Generic[ConfigT],
-): ...
+):
+    ...
 
 
 def is_component_instance(cls: Any) -> TypeGuard[_ConcreteComponent[BaseModel]]:

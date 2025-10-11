@@ -5,14 +5,23 @@ This package provides the fundamental agent classes and utilities
 for building intelligent agents that can reason, act, and adapt.
 """
 
-from ._base import BaseAgent, AgentError, AgentExecutionError, AgentConfigurationError, AgentToolError
 from ._agent import Agent
+from ._base import (
+    AgentConfigurationError,
+    AgentError,
+    AgentExecutionError,
+    AgentToolError,
+    BaseAgent,
+)
+from ._computer_use import ComputerUseAgent, PlaywrightWebClient
 
 __all__ = [
     "BaseAgent",
-    "Agent", 
+    "Agent",
+    "ComputerUseAgent",
     "AgentError",
-    "AgentExecutionError", 
+    "AgentExecutionError",
     "AgentConfigurationError",
     "AgentToolError",
+    "PlaywrightWebClient",
 ]
