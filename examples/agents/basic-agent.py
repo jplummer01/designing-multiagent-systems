@@ -44,7 +44,7 @@ async def main():
     print(f"Tools: {[tool.name for tool in agent.tools]}\n")
 
     async for event in agent.run_stream(
-        "What's the weather in New York and what is 12 * 15?", stream_tokens=True
+        "What's the weather in New York and what is 12 * 15?", stream_tokens=False
     ):
         print(event)
 
