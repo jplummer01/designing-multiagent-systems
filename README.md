@@ -66,7 +66,7 @@ Click Colab badges in the chapter tables below to run examples in your browser. 
 
 ### Option 2: GitHub Codespaces
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
+<a href="https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1" target="_blank"><img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces"></a>
 
 Pre-configured development environment in your browser. Once open:
 
