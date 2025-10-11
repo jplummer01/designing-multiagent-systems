@@ -2,6 +2,8 @@
 
 Official code repository for [Designing Multi-Agent Systems: Principles, Patterns, and Implementation for AI Agents](https://buy.multiagentbook.com) by [Victor Dibia](https://victordibia.com).
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
+
 ![Designing Multi-Agent Systems](./docs/images/bookcover.png)
 
 Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency so you can understand exactly how production systems are built.
@@ -24,8 +26,6 @@ As the AI agent space evolves rapidly, clear patterns are emerging for building 
 ## What You'll Learn & Build
 
 The book is organized across 4 parts, taking you from theory to production:
-
-> You can open the examples in GitHub Codespaces or run them locally. See [Getting Started](#getting-started) below. [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
 
 ### Part I: Foundations of Multi-Agent Systems
 

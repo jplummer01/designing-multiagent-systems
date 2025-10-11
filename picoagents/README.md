@@ -15,6 +15,7 @@ pip install picoagents
 ```
 
 **Requirements:**
+
 - Python 3.10+
 - OpenAI API key (set `OPENAI_API_KEY` environment variable)
 
