@@ -22,7 +22,7 @@ def test_llm_client_serialization():
     """Test LLM client serialization roundtrip."""
     # Create client
     client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini", api_key="test-key", base_url="https://test.openai.com/v1/"
+        model="gpt-4.1-mini", api_key="test-key", base_url="https://test.openai.com/v1/"
     )
 
     # Serialize and deserialize
@@ -98,7 +98,7 @@ def test_termination_serialization():
 def test_agent_serialization():
     """Test agent serialization with nested components."""
     # Create components
-    model_client = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="test-key")
+    model_client = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="test-key")
     memory = ListMemory(max_memories=20)
 
     # Create agent
@@ -120,7 +120,7 @@ def test_agent_serialization():
     assert loaded_agent.description == "A test agent"
     assert loaded_agent.instructions == "Test instructions"
     assert loaded_agent.max_iterations == 8
-    assert loaded_agent.model_client.model == "gpt-4o-mini"
+    assert loaded_agent.model_client.model == "gpt-4.1-mini"
     assert loaded_agent.memory is not None
     assert loaded_agent.memory.max_memories == 20
     assert isinstance(loaded_agent.memory, ListMemory)
@@ -129,8 +129,8 @@ def test_agent_serialization():
 def test_round_robin_orchestrator_serialization():
     """Test RoundRobinOrchestrator serialization."""
     # Create components
-    model_client1 = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="test-1")
-    model_client2 = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="test-2")
+    model_client1 = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="test-1")
+    model_client2 = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="test-2")
 
     agent1 = Agent("Agent1", "First agent", "You are agent 1", model_client1)
     agent2 = Agent("Agent2", "Second agent", "You are agent 2", model_client2)
@@ -160,9 +160,9 @@ def test_round_robin_orchestrator_serialization():
 def test_ai_orchestrator_serialization():
     """Test AIOrchestrator serialization."""
     # Create components
-    model_client = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="test-key")
+    model_client = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="test-key")
     selector_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini", api_key="selector-key"
+        model="gpt-4.1-mini", api_key="selector-key"
     )
 
     agent1 = Agent("Agent1", "First agent", "You are agent 1", model_client)
@@ -199,7 +199,7 @@ def test_nested_serialization_integrity():
     """Test that deeply nested serialization preserves all data integrity."""
     # Create a complex nested structure
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini", api_key="nested-test"
+        model="gpt-4.1-mini", api_key="nested-test"
     )
     memory = FileMemory("nested_test.json", max_memories=100)
 
@@ -221,7 +221,7 @@ def test_nested_serialization_integrity():
         agents=[agent],
         termination=composite_term,
         model_client=OpenAIChatCompletionClient(
-            model="gpt-4o-mini", api_key="orchestrator-key"
+            model="gpt-4.1-mini", api_key="orchestrator-key"
         ),
         max_iterations=20,
     )

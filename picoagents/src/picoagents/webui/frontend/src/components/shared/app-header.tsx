@@ -14,6 +14,8 @@ interface AppHeaderProps {
   selectedEntity?: Entity;
   onSelect: (entity: Entity) => void;
   isLoading?: boolean;
+  onViewGallery?: () => void;
+  onDeleteEntity?: (entity: Entity) => void;
 }
 
 export function AppHeader({
@@ -21,6 +23,8 @@ export function AppHeader({
   selectedEntity,
   onSelect,
   isLoading = false,
+  onViewGallery,
+  onDeleteEntity,
 }: AppHeaderProps) {
   return (
     <header className="flex h-14 items-center gap-4 border-b px-4">
@@ -30,6 +34,8 @@ export function AppHeader({
         selectedEntity={selectedEntity}
         onSelect={onSelect}
         isLoading={isLoading}
+        onViewGallery={onViewGallery}
+        onDeleteEntity={onDeleteEntity}
       />
 
       <div className="flex items-center gap-2 ml-auto">

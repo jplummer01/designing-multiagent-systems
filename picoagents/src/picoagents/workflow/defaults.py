@@ -310,7 +310,7 @@ def _create_agent_template():
 
     # Create a template model client (user will need to configure with real API key)
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
     )
 
     # Create template PicoAgent
@@ -398,7 +398,7 @@ def create_simple_agent_workflow() -> ComponentModel:
 
     # Create PicoAgent for workflow
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
         # API key will be loaded from environment
     )
 

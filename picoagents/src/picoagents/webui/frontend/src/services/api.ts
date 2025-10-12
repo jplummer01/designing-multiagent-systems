@@ -63,6 +63,24 @@ class ApiClient {
     return this.request<Entity>(`/api/entities/${entityId}`);
   }
 
+  async deleteEntity(entityId: string): Promise<{ status: string; entity_id: string; message: string }> {
+    return this.request(`/api/entities/${entityId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Add example from GitHub
+  async addExample(request: {
+    example_id: string;
+    github_path: string;
+    category: string;
+  }): Promise<Entity> {
+    return this.request<Entity>("/api/entities/add", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
   // Type-specific entity getters for convenience
   async getAgents(): Promise<AgentInfo[]> {
     const entities = await this.getEntities();

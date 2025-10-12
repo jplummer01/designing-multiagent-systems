@@ -59,7 +59,7 @@ Examples:
     ui_parser.add_argument(
         "--dir",
         default=".",
-        help="Directory to scan for entities (default: current directory)",
+        help="Directory to scan for agents, orchestrators, and workflows (default: current directory)",
     )
     ui_parser.add_argument(
         "--port",

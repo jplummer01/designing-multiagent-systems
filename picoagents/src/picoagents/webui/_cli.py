@@ -56,7 +56,7 @@ def webui(
             print(f"❌ Path is not a directory: {entities_path}")
             sys.exit(1)
 
-        print(f"🔍 Scanning {entities_path} for PicoAgents entities...")
+        print(f"🔍 Scanning {entities_path} for agents, orchestrators, and workflows...")
 
         # Quick discovery check to provide feedback
         scanner = PicoAgentsScanner(str(entities_path))
@@ -64,18 +64,18 @@ def webui(
             discovered = scanner.discover_entities()
 
             if discovered:
-                print(f"📋 Found {len(discovered)} entities:")
+                print(f"📋 Found {len(discovered)}:")
                 for entity in discovered:
                     print(f"   • {entity.id} ({entity.type})")
             else:
-                print(f"⚠️  No PicoAgents entities found in {entities_path}")
+                print(f"⚠️  No agents, orchestrators, or workflows found in {entities_path}")
                 print("   Make sure the directory contains valid Python modules with:")
                 print("   - agent = Agent(...)")
                 print("   - orchestrator = RoundRobinOrchestrator(...)")
                 print("   - workflow = Workflow(...)")
         except Exception as e:
             print(f"⚠️  Error during discovery: {e}")
-            print("   Continuing anyway - entities may be discovered at runtime")
+            print("   Continuing anyway - may be discovered at runtime")
 
     print(f"🚀 Starting PicoAgents WebUI on http://{host}:{port}")
 
@@ -126,7 +126,7 @@ Examples:
     parser.add_argument(
         "--dir",
         default=".",
-        help="Directory to scan for PicoAgents entities (default: current directory)",
+        help="Directory to scan for agents, orchestrators, and workflows (default: current directory)",
     )
     parser.add_argument(
         "--port",

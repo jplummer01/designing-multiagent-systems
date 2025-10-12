@@ -84,6 +84,20 @@ class HealthResponse(BaseModel):
     entities_count: int = Field(0, description="Number of discovered entities")
 
 
+class AddExampleRequest(BaseModel):
+    """Request to add an example from GitHub."""
+
+    example_id: str = Field(
+        description="Example identifier (e.g., 'basic-agent', 'round-robin')"
+    )
+    github_path: str = Field(
+        description="Path to example file in GitHub repo (e.g., 'examples/agents/basic-agent.py')"
+    )
+    category: str = Field(
+        description="Category: 'agent', 'workflow', or 'orchestrator'"
+    )
+
+
 # For API requests, use PicoAgents types directly:
 # - Use picoagents.messages.Message for chat messages
 # - Use picoagents.types.AgentResponse for responses

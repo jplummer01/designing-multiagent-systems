@@ -11,6 +11,7 @@ import { AgentView } from "@/components/agent/agent-view";
 import { OrchestratorView } from "@/components/orchestrator/orchestrator-view";
 import { WorkflowView } from "@/components/workflow/workflow-view";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ExamplesGallery } from "@/components/shared/examples-gallery";
 import { apiClient } from "@/services/api";
 import { ChevronLeft } from "lucide-react";
 import type {
@@ -132,6 +133,74 @@ export default function App() {
     setDebugEvents((prev) => [...prev, event]);
   }, []);
 
+  // Handle example loaded from gallery
+  const handleExampleLoaded = useCallback((entity: Entity) => {
+    setAppState((prev) => {
+      // Add to entities list if not already present
+      const entityExists = prev.entities.some((e) => e.id === entity.id);
+      const newEntities = entityExists ? prev.entities : [...prev.entities, entity];
+
+      // Separate by type
+      const agents = newEntities.filter((e): e is AgentInfo => e.type === "agent");
+      const orchestrators = newEntities.filter((e): e is OrchestratorInfo => e.type === "orchestrator");
+      const workflows = newEntities.filter((e): e is WorkflowInfo => e.type === "workflow");
+
+      return {
+        ...prev,
+        entities: newEntities,
+        agents,
+        orchestrators,
+        workflows,
+        selectedEntity: entity, // Auto-select the newly loaded entity
+      };
+    });
+
+    // Clear debug events for the new entity
+    setDebugEvents([]);
+  }, []);
+
+  // Handle entity deletion
+  const handleDeleteEntity = useCallback(async (entity: Entity) => {
+    try {
+      await apiClient.deleteEntity(entity.id);
+
+      setAppState((prev) => {
+        // Remove from entities list
+        const newEntities = prev.entities.filter((e) => e.id !== entity.id);
+
+        // Separate by type
+        const agents = newEntities.filter((e): e is AgentInfo => e.type === "agent");
+        const orchestrators = newEntities.filter((e): e is OrchestratorInfo => e.type === "orchestrator");
+        const workflows = newEntities.filter((e): e is WorkflowInfo => e.type === "workflow");
+
+        // If deleted entity was selected, select the first available entity or undefined
+        const selectedEntity = prev.selectedEntity?.id === entity.id
+          ? (newEntities.length > 0 ? newEntities[0] : undefined)
+          : prev.selectedEntity;
+
+        return {
+          ...prev,
+          entities: newEntities,
+          agents,
+          orchestrators,
+          workflows,
+          selectedEntity,
+        };
+      });
+
+      // Clear debug events if the deleted entity was selected
+      if (appState.selectedEntity?.id === entity.id) {
+        setDebugEvents([]);
+      }
+    } catch (error) {
+      console.error("Failed to delete entity:", error);
+      setAppState((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to delete entity",
+      }));
+    }
+  }, [appState.selectedEntity]);
+
   // Show loading state while initializing
   if (appState.isLoading) {
     return (
@@ -170,7 +239,7 @@ export default function App() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4 max-w-md">
             <div className="text-destructive text-lg font-medium">
-              Failed to load entities
+              Failed to load agents, orchestrators, and workflows
             </div>
             <p className="text-muted-foreground text-sm">{appState.error}</p>
             <Button onClick={() => window.location.reload()} variant="outline">
@@ -196,18 +265,21 @@ export default function App() {
           isLoading={false}
         />
 
-        {/* Empty State Content */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4 max-w-md">
-            <div className="text-lg font-medium">No entities found</div>
-            <p className="text-muted-foreground text-sm">
-              No agents, orchestrators, or workflows were discovered. Please
-              check your configuration and ensure entities are properly set up.
-            </p>
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Retry
-            </Button>
+        {/* Empty State Content - Show Gallery */}
+        <div className="flex-1 overflow-auto">
+          {/* Friendly Message */}
+          <div className="max-w-6xl mx-auto px-8 pt-8 pb-4">
+            <div className="bg-muted/50 border border-border rounded-lg p-6 text-center">
+              <h2 className="text-xl font-semibold mb-2">
+                No agents, orchestrators, or workflows found
+              </h2>
+              <p className="text-muted-foreground">
+                We didn't discover any components in your directory. Try one from our sample gallery below to get started!
+              </p>
+            </div>
           </div>
+
+          <ExamplesGallery onExampleLoaded={handleExampleLoaded} />
         </div>
       </div>
     );
@@ -218,7 +290,7 @@ export default function App() {
     if (!appState.selectedEntity) {
       return (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          Select an entity to get started.
+          Select an agent, orchestrator, or workflow to get started.
         </div>
       );
     }
@@ -248,7 +320,7 @@ export default function App() {
       default:
         return (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Unknown entity type: {(appState.selectedEntity as any).type}
+            Unknown type: {(appState.selectedEntity as any).type}
           </div>
         );
     }
@@ -261,6 +333,7 @@ export default function App() {
         selectedEntity={appState.selectedEntity}
         onSelect={handleEntitySelect}
         isLoading={appState.isLoading}
+        onDeleteEntity={handleDeleteEntity}
       />
 
       {/* Main Content - Split Panel with explicit height */}

@@ -27,7 +27,7 @@ async def main():
     """Demonstrate structured output with OpenAI model."""
 
     # Initialize the OpenAI client
-    client = OpenAIChatCompletionClient(model="gpt-4o-mini")
+    client = OpenAIChatCompletionClient(model="gpt-4.1-mini")
     # Create a user message asking for person information
     messages: List[Message] = [
         UserMessage(

@@ -32,7 +32,7 @@ def get_weather(location: str) -> str:
 agent = Agent(
     name="assistant",
     instructions="You are helpful. Use tools when appropriate.",
-    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini"),
+    model_client=OpenAIChatCompletionClient(model="gpt-4.1-mini"),
     tools=[get_weather]
 )
 

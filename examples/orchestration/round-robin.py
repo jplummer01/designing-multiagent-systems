@@ -16,7 +16,7 @@ from picoagents.termination import MaxMessageTermination, TextMentionTermination
 def get_orchestrator():
     """Demonstrate round-robin conversation flow."""
 
-    client = OpenAIChatCompletionClient(model="gpt-4o-mini")
+    client = OpenAIChatCompletionClient(model="gpt-4.1-mini")
 
     # Create a haiku writer and critic working together
     poet = Agent(

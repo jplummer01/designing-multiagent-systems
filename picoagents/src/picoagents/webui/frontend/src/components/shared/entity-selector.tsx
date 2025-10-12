@@ -22,7 +22,9 @@ import {
   FolderOpen,
   Database,
   Users,
-  Settings
+  Settings,
+  Library,
+  Trash2
 } from "lucide-react";
 import type { Entity, AgentInfo, OrchestratorInfo, WorkflowInfo } from "@/types";
 
@@ -31,6 +33,8 @@ interface EntitySelectorProps {
   selectedEntity?: Entity;
   onSelect: (entity: Entity) => void;
   isLoading?: boolean;
+  onViewGallery?: () => void;
+  onDeleteEntity?: (entity: Entity) => void;
 }
 
 const getTypeIcon = (type: "agent" | "orchestrator" | "workflow") => {
@@ -83,6 +87,8 @@ export function EntitySelector({
   selectedEntity,
   onSelect,
   isLoading = false,
+  onViewGallery,
+  onDeleteEntity,
 }: EntitySelectorProps) {
   const [open, setOpen] = useState(false);
 
@@ -97,13 +103,21 @@ export function EntitySelector({
   };
 
   const TypeIcon = selectedEntity ? getTypeIcon(selectedEntity.type) : Bot;
-  const displayName = selectedEntity?.name || selectedEntity?.id || "Select Entity";
+  const displayName = selectedEntity?.name || selectedEntity?.id || "Select...";
   const metadata = selectedEntity ? getEntityMetadata(selectedEntity) : null;
+
+  const handleDelete = (entity: Entity, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown item click
+    if (onDeleteEntity) {
+      onDeleteEntity(entity);
+    }
+  };
 
   const renderEntityItem = (entity: Entity) => {
     const EntityIcon = getTypeIcon(entity.type);
     const SourceIcon = getSourceIcon(entity.source);
     const entityMetadata = getEntityMetadata(entity);
+    const canDelete = entity.source === "github" || entity.source === "memory";
 
     return (
       <DropdownMenuItem
@@ -111,10 +125,10 @@ export function EntitySelector({
         onClick={() => handleSelect(entity)}
         className="cursor-pointer"
       >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between w-full gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <EntityIcon className="h-4 w-4 flex-shrink-0" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="truncate font-medium">
                 {entity.name || entity.id}
               </div>
@@ -135,6 +149,16 @@ export function EntitySelector({
             <Badge variant="outline" className="text-xs">
               {entityMetadata.count}
             </Badge>
+            {canDelete && onDeleteEntity && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                onClick={(e) => handleDelete(entity, e)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         </div>
       </DropdownMenuItem>
@@ -208,12 +232,31 @@ export function EntitySelector({
         )}
 
         {/* Empty State */}
-        {entities.length === 0 && (
+        {entities.length === 0 && !onViewGallery && (
           <DropdownMenuItem disabled>
             <div className="text-center text-muted-foreground py-2">
-              {isLoading ? "Loading entities..." : "No entities found"}
+              {isLoading ? "Loading..." : "No agents, orchestrators, or workflows found"}
             </div>
           </DropdownMenuItem>
+        )}
+
+        {/* View Gallery Button */}
+        {onViewGallery && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                onViewGallery();
+                setOpen(false);
+              }}
+              className="cursor-pointer"
+            >
+              <div className="flex items-center gap-2 w-full text-primary">
+                <Library className="h-4 w-4" />
+                <span className="font-medium">Browse Examples Gallery</span>
+              </div>
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

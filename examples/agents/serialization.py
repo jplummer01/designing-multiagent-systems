@@ -23,7 +23,7 @@ def test_llm_serialization():
 
     # Create an OpenAI client
     client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
         api_key="sk-test-key-12345",  # Dummy key for example
     )
 
@@ -107,7 +107,7 @@ def test_agent_serialization():
     print("\n👤 Creating Agent...")
 
     model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
         api_key="sk-test-key-12345",
     )
 
@@ -196,8 +196,8 @@ def test_orchestrator_serialization():
     print("\n⚙️ Creating orchestrator components...")
 
     # Create model clients
-    model_client1 = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="sk-test-1")
-    model_client2 = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="sk-test-2")
+    model_client1 = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="sk-test-1")
+    model_client2 = OpenAIChatCompletionClient(model="gpt-4.1-mini", api_key="sk-test-2")
 
     # Create agents
     agent1 = Agent(
@@ -251,7 +251,7 @@ def test_orchestrator_serialization():
 
     # Create selector model client (for AI decision making)
     selector_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini", api_key="sk-selector-key"
+        model="gpt-4.1-mini", api_key="sk-selector-key"
     )
 
     # Create AI orchestrator

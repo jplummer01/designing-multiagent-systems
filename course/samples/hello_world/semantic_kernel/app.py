@@ -37,7 +37,7 @@ class CalculatorPlugin:
 
 def sk_agent() -> ChatCompletionAgent:
     agent = ChatCompletionAgent(
-        service=OpenAIChatCompletion(ai_model_id="gpt-4o-mini"),
+        service=OpenAIChatCompletion(ai_model_id="gpt-4.1-mini"),
         name="calculator_agent",
         instructions="You are a helpful calculator assistant that can perform arithmetic operations using the calculator tool.",
         plugins=[CalculatorPlugin()],

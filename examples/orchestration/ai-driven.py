@@ -18,7 +18,7 @@ from picoagents.types import OrchestrationResponse
 def get_orchestrator():
     """Create AI-driven orchestrator for writing tasks."""
 
-    client = OpenAIChatCompletionClient(model="gpt-4o-mini")
+    client = OpenAIChatCompletionClient(model="gpt-4.1-mini")
 
     writer = Agent(
         name="writer",

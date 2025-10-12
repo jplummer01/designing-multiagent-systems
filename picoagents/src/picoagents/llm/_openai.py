@@ -45,7 +45,7 @@ from ._base import (
 class OpenAIChatCompletionClientConfig(BaseModel):
     """Configuration for OpenAIChatCompletionClient serialization."""
 
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
     api_key: Optional[str] = None
     base_url: Optional[str] = None
     organization: Optional[str] = None
@@ -68,7 +68,7 @@ class OpenAIChatCompletionClient(
 
     def __init__(
         self,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-4.1-mini",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         organization: Optional[str] = None,

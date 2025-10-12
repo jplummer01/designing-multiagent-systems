@@ -69,7 +69,7 @@ def get_weather(location: str) -> str:
 # Create an agent
 weather_agent = Agent(
     name="weather_assistant",
-    model_client=OpenAIChatCompletionClient(model="gpt-4o-mini"),
+    model_client=OpenAIChatCompletionClient(model="gpt-4.1-mini"),
     instructions="Help users check weather using the get_weather tool",
     tools=[get_weather],
 )

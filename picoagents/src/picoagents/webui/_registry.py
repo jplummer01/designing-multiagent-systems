@@ -58,6 +58,62 @@ class EntityRegistry:
             self._entities[entity_id] = entity_info
             logger.info(f"Registered in-memory entity: {entity_id}")
 
+    def register_from_file(self, file_path: str, entity_id: str) -> Optional[Entity]:
+        """Register an entity from a Python file.
+
+        Args:
+            file_path: Path to Python file containing entity definition
+            entity_id: Unique identifier for the entity
+
+        Returns:
+            Entity info if successful, None otherwise
+        """
+        import importlib.util
+        import sys
+        from pathlib import Path
+
+        try:
+            # Load the module from file
+            file_path_obj = Path(file_path)
+            spec = importlib.util.spec_from_file_location(entity_id, file_path_obj)
+            if not spec or not spec.loader:
+                logger.error(f"Failed to load spec for {file_path}")
+                return None
+
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[entity_id] = module
+            spec.loader.exec_module(module)
+
+            # Look for common entity variable names
+            entity_obj = None
+            for var_name in ["agent", "orchestrator", "workflow"]:
+                if hasattr(module, var_name):
+                    entity_obj = getattr(module, var_name)
+                    break
+
+            if not entity_obj:
+                logger.error(f"No agent/orchestrator/workflow found in {file_path}")
+                return None
+
+            # Register the entity
+            self._in_memory_entities[entity_id] = entity_obj
+
+            # Create entity info
+            entity_info = self._create_entity_info_from_object(entity_id, entity_obj)
+            if entity_info:
+                # Update source to indicate it's from GitHub
+                entity_info.source = "github"
+                entity_info.module_path = str(file_path_obj)
+                self._entities[entity_id] = entity_info
+                logger.info(f"Registered entity from file: {entity_id}")
+                return entity_info
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error registering from file {file_path}: {e}")
+            return None
+
     def get_entity_info(self, entity_id: str) -> Optional[Entity]:
         """Get entity information by ID.
 
@@ -126,6 +182,44 @@ class EntityRegistry:
             entity for entity in self._entities.values() if entity.type == "workflow"
         ]
 
+    def unregister_entity(self, entity_id: str) -> bool:
+        """Unregister an entity from the registry.
+
+        Args:
+            entity_id: Entity identifier to remove
+
+        Returns:
+            True if entity was removed, False if not found
+        """
+        removed = False
+
+        # Remove from in-memory entities
+        if entity_id in self._in_memory_entities:
+            del self._in_memory_entities[entity_id]
+            removed = True
+            logger.info(f"Removed in-memory entity: {entity_id}")
+
+        # Remove from entities dict
+        if entity_id in self._entities:
+            entity = self._entities[entity_id]
+            # Only allow removing entities that are from memory or github
+            # Don't remove directory-discovered entities
+            if entity.source in ["memory", "github"]:
+                del self._entities[entity_id]
+                removed = True
+                logger.info(f"Removed entity from registry: {entity_id}")
+            else:
+                logger.warning(f"Cannot remove directory-discovered entity: {entity_id}")
+                return False
+
+        # Clean up from sys.modules if it was a loaded module
+        import sys
+        if entity_id in sys.modules:
+            del sys.modules[entity_id]
+            logger.debug(f"Removed {entity_id} from sys.modules")
+
+        return removed
+
     def clear_cache(self) -> None:
         """Clear cache and refresh from directory."""
         if self.scanner:
@@ -180,6 +274,30 @@ class EntityRegistry:
                     tools=tools,
                     model=model,
                     memory_type=memory_type,
+                )
+        except ImportError:
+            pass
+
+        # Check for workflow objects (do this before orchestrator to avoid confusion)
+        try:
+            from ..workflow import Workflow
+
+            if isinstance(entity_obj, Workflow):
+                # Extract workflow-specific info
+                steps = (
+                    list(getattr(entity_obj, "steps", {}).keys())
+                    if hasattr(entity_obj, "steps")
+                    else []
+                )
+                start_step = getattr(entity_obj, "start_step", None)
+                input_schema = getattr(entity_obj, "input_schema", None)
+
+                return WorkflowInfo(
+                    **common_attrs,
+                    type="workflow",
+                    steps=steps,
+                    start_step=start_step,
+                    input_schema=input_schema,
                 )
         except ImportError:
             pass

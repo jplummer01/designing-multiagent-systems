@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from ..messages import Message
 from ..types import AgentResponse
 from ._execution import ExecutionEngine
-from ._models import Entity, HealthResponse
+from ._models import AddExampleRequest, Entity, HealthResponse
 from ._registry import EntityRegistry
 from ._sessions import SessionManager
 
@@ -127,6 +127,23 @@ class PicoAgentsWebUIServer:
                     status_code=404, detail=f"Entity {entity_id} not found"
                 )
             return entity_info
+
+        @app.delete("/api/entities/{entity_id}")
+        async def delete_entity(entity_id: str):
+            """Delete an entity from the registry."""
+            try:
+                removed = self.registry.unregister_entity(entity_id)
+                if not removed:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Entity {entity_id} not found or cannot be removed (directory-discovered entities cannot be deleted)"
+                    )
+                return {"status": "success", "entity_id": entity_id, "message": "Entity removed successfully"}
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Error deleting entity {entity_id}: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
 
         @app.post("/api/entities/{entity_id}/run", response_model=AgentResponse)
         async def run_entity(entity_id: str, request: RunEntityRequest):
@@ -360,6 +377,59 @@ class PicoAgentsWebUIServer:
                 }
             except Exception as e:
                 logger.error(f"Error getting stats: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @app.post("/api/entities/add", response_model=Entity)
+        async def add_example(request: AddExampleRequest):
+            """Add an example from GitHub repository."""
+            try:
+                import tempfile
+                import urllib.request
+                from pathlib import Path
+
+                # GitHub raw content URL
+                # Note: Examples are at the root of the repository, not in picoagents subdirectory
+                base_url = "https://raw.githubusercontent.com/victordibia/designing-multiagent-systems/main"
+                file_url = f"{base_url}/{request.github_path}"
+
+                logger.info(f"Downloading example from: {file_url}")
+
+                # Download file content
+                with urllib.request.urlopen(file_url) as response:
+                    file_content = response.read().decode("utf-8")
+
+                # Create a temporary directory for the example
+                temp_dir = Path(tempfile.gettempdir()) / "picoagents_examples"
+                temp_dir.mkdir(exist_ok=True)
+
+                # Save the file
+                example_file = temp_dir / f"{request.example_id}.py"
+                example_file.write_text(file_content)
+
+                logger.info(f"Saved example to: {example_file}")
+
+                # Register with the entity registry
+                entity_info = self.registry.register_from_file(
+                    str(example_file), request.example_id
+                )
+
+                if not entity_info:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to register example: {request.example_id}",
+                    )
+
+                logger.info(f"Successfully registered example: {request.example_id}")
+                return entity_info
+
+            except urllib.error.HTTPError as e:
+                logger.error(f"GitHub download failed: {e}")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Example not found on GitHub: {request.github_path}",
+                )
+            except Exception as e:
+                logger.error(f"Error adding example: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
     def _mount_frontend(self, app: FastAPI) -> None:

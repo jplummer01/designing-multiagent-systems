@@ -45,7 +45,7 @@ from ._base import (
 class AzureOpenAIChatCompletionClientConfig(BaseModel):
     """Configuration for AzureOpenAIChatCompletionClient serialization."""
 
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4.1-mini"
     azure_endpoint: Optional[str] = None
     api_key: Optional[str] = None
     api_version: str = "2024-10-21"
@@ -69,7 +69,7 @@ class AzureOpenAIChatCompletionClient(
 
     def __init__(
         self,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-4.1-mini",
         azure_endpoint: Optional[str] = None,
         api_key: Optional[str] = None,
         api_version: str = "2024-10-21",

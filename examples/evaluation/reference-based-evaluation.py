@@ -120,14 +120,14 @@ async def compare_judge_types():
     # Setup Azure OpenAI
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4.1-mini")
 
     if not azure_endpoint or not api_key:
         print("❌ Skipping judge comparison - Azure OpenAI credentials not found")
         return
 
     client = AzureOpenAIChatCompletionClient(
-        model="gpt-4o-mini",
+        model="gpt-4.1-mini",
         azure_endpoint=azure_endpoint,
         api_key=api_key,
         azure_deployment=deployment,

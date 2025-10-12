@@ -16,7 +16,7 @@ class MockAgent:
         self.description = "Test agent"
         self.tools = []
         self.model_client = Mock()
-        self.model_client.model = "gpt-3.5-turbo"
+        self.model_client.model = "gpt-4.1-mini"
         self.memory = None
 
     async def run(self, messages):
