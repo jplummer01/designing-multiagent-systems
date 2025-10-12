@@ -227,7 +227,7 @@ class PicoAgentsWebUIServer:
                         session_id=request.session_id,
                     )
                 elif entity_info.type == "workflow":
-                    if not request.input_data:
+                    if request.input_data is None:
                         raise HTTPException(
                             status_code=400,
                             detail="Input data required for workflow execution",

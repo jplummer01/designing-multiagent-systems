@@ -535,8 +535,23 @@ class PicoAgentsScanner:
             if hasattr(workflow, "steps")
             else []
         )
-        start_step = getattr(workflow, "start_step", None)
+        # Try both start_step and start_step_id for compatibility
+        start_step = getattr(workflow, "start_step_id", None) or getattr(workflow, "start_step", None)
         input_schema = getattr(workflow, "input_schema", None)
+
+        # If no explicit input_schema, try to infer from the start step's input_type
+        if input_schema is None and start_step and hasattr(workflow, "steps"):
+            workflow_steps = getattr(workflow, "steps", {})
+            if start_step in workflow_steps:
+                first_step = workflow_steps[start_step]
+                if hasattr(first_step, "input_type"):
+                    input_type = first_step.input_type
+                    # Check if it's a Pydantic model with a schema
+                    if hasattr(input_type, "model_json_schema"):
+                        try:
+                            input_schema = input_type.model_json_schema()
+                        except Exception as e:
+                            logger.debug(f"Could not extract input schema: {e}")
 
         return WorkflowInfo(
             **common_attrs,

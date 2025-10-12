@@ -10,6 +10,7 @@ from typing import Any, AsyncGenerator, List, Optional
 
 from ..context import AgentContext
 from ..messages import Message
+from ..workflow import WorkflowRunner
 from ._models import WebUIStreamEvent
 from ._sessions import SessionManager
 
@@ -159,8 +160,9 @@ class ExecutionEngine:
         context.metadata["last_input"] = input_data
 
         try:
-            # Stream raw workflow events
-            async for event in workflow.run_stream(input_data):
+            # Create workflow runner and stream events
+            runner = WorkflowRunner()
+            async for event in runner.run_stream(workflow, input_data):
                 wrapped_event = WebUIStreamEvent(
                     session_id=session_id, event=event
                 )
