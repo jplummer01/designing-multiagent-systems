@@ -26,45 +26,45 @@ interface ExamplesGalleryProps {
 }
 
 const EXAMPLES: Example[] = [
-  // Agents
+  // Agents (2)
   {
     id: "basic-agent",
     title: "Basic Agent",
-    description: "Start here: A simple agent that demonstrates tool use and conversation",
+    description: "Start here: Simple agent with weather and calculator tools",
     category: "agent",
     githubPath: "examples/agents/basic-agent.py",
     difficulty: "beginner",
   },
   {
-    id: "memory",
-    title: "Agent with Memory",
-    description: "Agent that remembers context across conversations",
+    id: "agent-as-tool",
+    title: "Agent as Tool",
+    description: "Coordinator agent using specialist agents as tools",
     category: "agent",
-    githubPath: "examples/agents/memory.py",
+    githubPath: "examples/agents/agent_as_tool.py",
     difficulty: "intermediate",
   },
-  {
-    id: "structured-output",
-    title: "Structured Output",
-    description: "Agent that returns type-safe, structured responses",
-    category: "agent",
-    githubPath: "examples/agents/structured-output.py",
-    difficulty: "intermediate",
-  },
-  // Workflows
+  // Workflows (2)
   {
     id: "sequential",
     title: "Sequential Workflow",
-    description: "Step-by-step task execution with multiple agents",
+    description: "Linear pipeline: double → square → add_ten",
     category: "workflow",
     githubPath: "examples/workflows/sequential.py",
     difficulty: "beginner",
   },
-  // Orchestrators
+  {
+    id: "general",
+    title: "General Workflow",
+    description: "Flexible workflow with branching and parallel steps",
+    category: "workflow",
+    githubPath: "examples/workflows/general.py",
+    difficulty: "intermediate",
+  },
+  // Orchestrators (3)
   {
     id: "round-robin",
     title: "Round-Robin",
-    description: "Multiple agents taking turns in conversation",
+    description: "Poet and critic taking turns to refine haiku",
     category: "orchestrator",
     githubPath: "examples/orchestration/round-robin.py",
     difficulty: "beginner",
@@ -72,7 +72,7 @@ const EXAMPLES: Example[] = [
   {
     id: "ai-driven",
     title: "AI-Driven",
-    description: "LLM decides which agent to invoke next",
+    description: "LLM dynamically selects which agent speaks next",
     category: "orchestrator",
     githubPath: "examples/orchestration/ai-driven.py",
     difficulty: "intermediate",
@@ -80,7 +80,7 @@ const EXAMPLES: Example[] = [
   {
     id: "plan-based",
     title: "Plan-Based",
-    description: "Orchestrator that creates and executes plans",
+    description: "Orchestrator creates plans and executes them strategically",
     category: "orchestrator",
     githubPath: "examples/orchestration/plan-based.py",
     difficulty: "advanced",
