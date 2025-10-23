@@ -4,11 +4,11 @@ Official code repository for [Designing Multi-Agent Systems: Principles, Pattern
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/victordibia/designing-multiagent-systems?quickstart=1)
 
-![Designing Multi-Agent Systems](./docs/images/bookcover.png)
+[![Designing Multi-Agent Systems](./docs/images/bookcover.png)](https://buy.multiagentbook.com)
 
 Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency.
 
-[📖 Buy Digital Edition](https://buy.multiagentbook.com) | [🛒 Buy Print - Coming Soon]()
+[Buy Digital Edition](https://buy.multiagentbook.com) | [Buy Print - Coming Soon]()
 
 ---
 
@@ -204,7 +204,7 @@ examples/
 
 ## Key Features
 
-🎯 **Production-Ready Patterns**
+**Production-Ready Patterns**
 
 Illustrated through real-world case studies (see [YC Analysis workflow](examples/workflows/yc_analysis/)):
 
@@ -213,20 +213,20 @@ Illustrated through real-world case studies (see [YC Analysis workflow](examples
 - Reliability: Checkpointing and resumable workflows
 - Advanced reasoning: Think tool for improved problem-solving (54% performance gain)
 
-🖥️ **Computer Use Agents**
+**Computer Use Agents**
 
 - Playwright-based browser automation
 - Multimodal reasoning with vision models
 - Built-in tools: navigate, click, type, scroll, extract content
 
-🌐 **Web UI & CLI**
+**Web UI & CLI**
 
 - Auto-discovery of agents, orchestrators, workflows
 - Real-time streaming with Server-Sent Events
 - Session management with conversation history
 - Launch: `picoagents ui`
 
-🧪 **Evaluation Framework**
+**Evaluation Framework**
 
 - LLM-as-judge evaluation patterns
 - Reference-based validation (exact, fuzzy, contains)
