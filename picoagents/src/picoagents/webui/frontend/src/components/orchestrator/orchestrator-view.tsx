@@ -3,10 +3,11 @@
  * Features: Multi-agent conversation display, termination conditions, agent tracking
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChatBase } from "@/components/shared/chat-base";
+import { ExampleTasksDisplay } from "@/components/shared/example-tasks-display";
 import { Users, Bot, MessageSquare, StopCircle } from "lucide-react";
 import { apiClient } from "@/services/api";
 import type {
@@ -28,6 +29,7 @@ export function OrchestratorView({
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentAgentSpeaking, setCurrentAgentSpeaking] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSendMessage = useCallback(
     async (newMessages: Message[]) => {
@@ -35,6 +37,9 @@ export function OrchestratorView({
       setMessages((prev) => [...prev, ...newMessages]);
       setIsStreaming(true);
       setCurrentAgentSpeaking(null);
+
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
 
       try {
         const request: RunEntityRequest = {
@@ -51,7 +56,8 @@ export function OrchestratorView({
 
         for await (const event of apiClient.streamEntityExecution(
           selectedOrchestrator.id,
-          request
+          request,
+          abortControllerRef.current.signal
         )) {
           onDebugEvent(event);
 
@@ -80,19 +86,38 @@ export function OrchestratorView({
         }
       } catch (error) {
         console.error("Failed to send message:", error);
-        const errorMessage: Message = {
-          role: "assistant",
-          content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          source: "system",
-        };
-        setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
+
+        // Check if this was an abort (user clicked stop)
+        if (error instanceof Error && error.name === "AbortError") {
+          const cancelMessage: Message = {
+            role: "assistant",
+            content: "Cancelled by user",
+            source: "system",
+          };
+          setMessages((prev) => [...prev.slice(0, -1), cancelMessage]);
+        } else {
+          const errorMessage: Message = {
+            role: "assistant",
+            content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            source: "system",
+          };
+          setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
+        }
       } finally {
         setIsStreaming(false);
         setCurrentAgentSpeaking(null);
+        abortControllerRef.current = null;
       }
     },
     [selectedOrchestrator.id, messages, onDebugEvent]
   );
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      console.log("🛑 Stopping orchestrator execution");
+      abortControllerRef.current.abort();
+    }
+  }, []);
 
   const handleClearMessages = useCallback(() => {
     setMessages([]);
@@ -195,10 +220,27 @@ export function OrchestratorView({
           messages={messages}
           onSendMessage={handleSendMessage}
           onClearMessages={handleClearMessages}
+          onStop={handleStop}
           isStreaming={isStreaming}
           placeholder={`Start a conversation with ${selectedOrchestrator.agents.length} agents via ${selectedOrchestrator.orchestrator_type} orchestration...`}
           emptyStateTitle="Multi-Agent Orchestration"
           emptyStateDescription={`This orchestrator will coordinate conversations between ${selectedOrchestrator.agents.join(", ")} using ${selectedOrchestrator.orchestrator_type} pattern.`}
+          emptyStateCustom={
+            selectedOrchestrator.example_tasks && selectedOrchestrator.example_tasks.length > 0 ? (
+              <ExampleTasksDisplay
+                tasks={selectedOrchestrator.example_tasks}
+                entityName={selectedOrchestrator.name || selectedOrchestrator.id}
+                onTaskClick={(task) => {
+                  const userMessage: Message = {
+                    role: "user",
+                    content: task,
+                    source: "user",
+                  };
+                  handleSendMessage([userMessage]);
+                }}
+              />
+            ) : null
+          }
         />
       </div>
     </div>

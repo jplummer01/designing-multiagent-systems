@@ -179,6 +179,8 @@ class WorkflowEventType(str, Enum):
     WORKFLOW_COMPLETED = "workflow_completed"
     WORKFLOW_FAILED = "workflow_failed"
     WORKFLOW_CANCELLED = "workflow_cancelled"
+    WORKFLOW_RESUMED = "workflow_resumed"
+    CHECKPOINT_SAVED = "checkpoint_saved"
     STEP_STARTED = "step_started"
     STEP_COMPLETED = "step_completed"
     STEP_FAILED = "step_failed"
@@ -300,3 +302,41 @@ class EdgeActivatedEvent(WorkflowEvent):
     def __str__(self) -> str:
         time_str = self.timestamp.strftime("%H:%M:%S")
         return f"[{time_str}] 🔗 {self.from_step} → {self.to_step}"
+
+
+class WorkflowResumedEvent(WorkflowEvent):
+    """Workflow resumed from checkpoint."""
+
+    event_type: WorkflowEventType = WorkflowEventType.WORKFLOW_RESUMED
+    checkpoint_id: str
+    completed_steps: List[str]
+    pending_steps: List[str]
+
+    def __str__(self) -> str:
+        time_str = self.timestamp.strftime("%H:%M:%S")
+        return (
+            f"[{time_str}] 🔄 Resumed from checkpoint "
+            f"({len(self.completed_steps)} completed, "
+            f"{len(self.pending_steps)} pending)"
+        )
+
+
+class CheckpointSavedEvent(WorkflowEvent):
+    """Checkpoint saved during execution."""
+
+    event_type: WorkflowEventType = WorkflowEventType.CHECKPOINT_SAVED
+    checkpoint_id: str
+    completed_steps: int
+    total_steps: int
+
+    def __str__(self) -> str:
+        time_str = self.timestamp.strftime("%H:%M:%S")
+        progress = (
+            (self.completed_steps / self.total_steps * 100)
+            if self.total_steps > 0
+            else 0
+        )
+        return (
+            f"[{time_str}] 💾 Checkpoint saved "
+            f"({self.completed_steps}/{self.total_steps} steps, {progress:.0f}%)"
+        )

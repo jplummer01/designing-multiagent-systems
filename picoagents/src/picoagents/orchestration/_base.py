@@ -47,6 +47,7 @@ class BaseOrchestrator(ComponentBase[BaseModel], ABC):
         max_iterations: int = 50,
         name: Optional[str] = None,
         description: Optional[str] = None,
+        example_tasks: Optional[List[str]] = None,
     ):
         """
         Initialize the orchestrator.
@@ -57,6 +58,7 @@ class BaseOrchestrator(ComponentBase[BaseModel], ABC):
             max_iterations: Safety fallback for iterations
             name: Optional name for the orchestrator
             description: Optional description of the orchestrator's purpose
+            example_tasks: Optional list of example tasks to help users discover orchestrator capabilities
         """
         if not agents:
             raise ValueError("At least one agent is required")
@@ -66,6 +68,7 @@ class BaseOrchestrator(ComponentBase[BaseModel], ABC):
         self.max_iterations = max_iterations
         self.name = name or self.__class__.__name__
         self.description = description
+        self.example_tasks = example_tasks or []
 
         # Runtime state
         self.shared_messages: List[Message] = []

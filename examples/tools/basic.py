@@ -3,12 +3,12 @@
 Example demonstrating the different tool categories in picoagents.
 
 This example shows:
-1. Core tools (calculator, datetime, json, regex) - no external dependencies
-2. Planning tools (task management) - no external dependencies
+1. Core tools (calculator, datetime, json, regex, think) - no external dependencies
+2. Memory tools (persistent file-based memory) - no external dependencies
 3. Coding tools (file operations, code execution) - no external dependencies
 4. Research tools (web search, content extraction) - requires: httpx, beautifulsoup4, arxiv
 
-Run with: python examples/tools_example.py
+Run with: python examples/tools/basic.py
 """
 
 import asyncio
@@ -20,9 +20,9 @@ from picoagents import Agent
 from picoagents.llm import AzureOpenAIChatCompletionClient
 from picoagents.tools import (
     RESEARCH_TOOLS_AVAILABLE,
+    MemoryTool,
     create_coding_tools,
     create_core_tools,
-    create_planning_tools,
 )
 
 
@@ -63,10 +63,10 @@ async def demo_core_tools():
     print(f"Agent: {response.messages[-1].content}\n")
 
 
-async def demo_planning_tools():
-    """Demonstrate planning tools for task management."""
+async def demo_memory_tools():
+    """Demonstrate memory tools for persistent knowledge storage."""
     print("\n" + "=" * 60)
-    print("DEMO 2: Planning Tools (Task Management)")
+    print("DEMO 2: Memory Tools (Persistent File-Based Storage)")
     print("=" * 60)
 
     azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -85,25 +85,36 @@ async def demo_planning_tools():
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        plan_file = Path(tmpdir) / "plan.json"
+        memory_path = Path(tmpdir) / "agent_memory"
 
         agent = Agent(
-            name="planner_agent",
-            description="Agent that creates and manages task plans",
-            instructions="You are a helpful assistant that creates structured plans. Use the planning tools to create a plan, track tasks, and report progress.",
+            name="memory_agent",
+            description="Agent that uses memory to store and recall information",
+            instructions="""You are a helpful assistant with persistent memory.
+Use the memory tool to store information that should persist across conversations.
+Available commands: view, create, str_replace, insert, delete, rename, search, append.
+Organize information in directories like /memories/notes/, /memories/facts/, etc.""",
             model_client=client,
-            tools=create_planning_tools(plan_file),
+            tools=[MemoryTool(base_path=memory_path)],
         )
 
-        task = "Create a plan for building a simple REST API with 3 tasks: 1) Design database schema, 2) Implement endpoints, 3) Write tests. Then mark the first task as completed and show me a summary."
+        task = """Create a task plan for building a REST API and store it in /memories/plan.md:
+1) Design database schema
+2) Implement endpoints
+3) Write tests
+
+Use markdown checklist format. Then search for 'database' to verify it was stored."""
 
         print(f"\nTask: {task}\n")
 
         response = await agent.run(task)
-        print(f"Agent: {response.messages[-1].content}\n")
+        print(f"Agent: {response.context.messages[-1].content}\n")
 
-        print(f"\nPlan file contents ({plan_file}):")
-        print(plan_file.read_text())
+        print(f"\nMemory contents ({memory_path}):")
+        for file in memory_path.rglob("*"):
+            if file.is_file():
+                print(f"\n--- {file.relative_to(memory_path)} ---")
+                print(file.read_text())
 
 
 async def demo_coding_tools():
@@ -209,13 +220,13 @@ async def main():
     print("=" * 60)
     print("\nThis demo showcases the different tool categories:")
     print("  1. Core Tools (no dependencies)")
-    print("  2. Planning Tools (no dependencies)")
+    print("  2. Memory Tools (no dependencies)")
     print("  3. Coding Tools (no dependencies)")
     print("  4. Research Tools (requires: httpx, beautifulsoup4, arxiv)")
 
     await demo_core_tools()
 
-    await demo_planning_tools()
+    await demo_memory_tools()
 
     await demo_coding_tools()
 

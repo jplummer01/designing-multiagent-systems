@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Any, AsyncGenerator, List, Optional
 
+from .._cancellation_token import CancellationToken
 from ..context import AgentContext
 from ..messages import Message
 from ..workflow import WorkflowRunner
@@ -34,6 +35,8 @@ class ExecutionEngine:
         messages: List[Message],
         session_id: Optional[str] = None,
         stream_tokens: bool = True,
+        approval_responses: Optional[List[Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream raw PicoAgent events with session management.
 
@@ -42,6 +45,8 @@ class ExecutionEngine:
             messages: New messages to add to session
             session_id: Optional existing session ID (creates new if None)
             stream_tokens: Enable token-level streaming
+            approval_responses: Optional tool approval responses to inject into context
+            cancellation_token: Optional token to cancel execution
 
         Yields:
             Server-sent events containing raw PicoAgent events
@@ -56,14 +61,25 @@ class ExecutionEngine:
             session_id, entity_id, "agent"
         )
 
+        # Inject approval responses into context before adding messages
+        if approval_responses:
+            for response in approval_responses:
+                context.add_approval_response(response)
+
         # Add new messages to context
         for msg in messages:
             context.add_message(msg)
 
         try:
             # Stream raw PicoAgent events
+            # If we have new messages, pass them as task; otherwise pass context to resume
+            task = messages if messages else None
             async for event in agent.run_stream(
-                context.messages, verbose=True, stream_tokens=stream_tokens
+                task=task,
+                context=context,
+                verbose=True,
+                stream_tokens=stream_tokens,
+                cancellation_token=cancellation_token,
             ):
                 # Wrap the raw event with session context
                 wrapped_event = WebUIStreamEvent(
@@ -89,6 +105,7 @@ class ExecutionEngine:
         orchestrator: Any,
         messages: List[Message],
         session_id: Optional[str] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream raw orchestrator events with session management.
 
@@ -96,6 +113,7 @@ class ExecutionEngine:
             orchestrator: Orchestrator object to execute
             messages: New messages to add to session
             session_id: Optional existing session ID
+            cancellation_token: Optional token to cancel execution
 
         Yields:
             Server-sent events containing raw orchestrator events
@@ -115,7 +133,9 @@ class ExecutionEngine:
 
         try:
             # Stream raw orchestrator events
-            async for event in orchestrator.run_stream(context.messages):
+            async for event in orchestrator.run_stream(
+                context.messages, cancellation_token=cancellation_token
+            ):
                 wrapped_event = WebUIStreamEvent(
                     session_id=session_id, event=event
                 )
@@ -136,6 +156,7 @@ class ExecutionEngine:
         workflow: Any,
         input_data: Any,
         session_id: Optional[str] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream raw workflow events with session management.
 
@@ -143,6 +164,7 @@ class ExecutionEngine:
             workflow: Workflow object to execute
             input_data: Input data for workflow
             session_id: Optional existing session ID
+            cancellation_token: Optional token to cancel execution
 
         Yields:
             Server-sent events containing raw workflow events
@@ -162,7 +184,9 @@ class ExecutionEngine:
         try:
             # Create workflow runner and stream events
             runner = WorkflowRunner()
-            async for event in runner.run_stream(workflow, input_data):
+            async for event in runner.run_stream(
+                workflow, input_data, cancellation_token=cancellation_token
+            ):
                 wrapped_event = WebUIStreamEvent(
                     session_id=session_id, event=event
                 )

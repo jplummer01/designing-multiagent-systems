@@ -357,7 +357,7 @@ class ObservabilityMiddleware(BaseMiddleware):
 
         return metrics
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(self, context: MiddlewareContext):
         """Start operation tracking."""
         context.metadata["start_time"] = datetime.now()
 
@@ -369,9 +369,9 @@ class ObservabilityMiddleware(BaseMiddleware):
             if context.operation == "model_call" and isinstance(context.data, list):
                 logger.info(f"   Context size: {len(context.data)} messages")
 
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(self, context: MiddlewareContext, result: Any):
         """Record successful operation."""
         duration = (datetime.now() - context.metadata["start_time"]).total_seconds()
         self._record_metric(context.operation, duration, success=True)
@@ -379,11 +379,11 @@ class ObservabilityMiddleware(BaseMiddleware):
         if self.enable_detailed_logging:
             logger.info(f"✅ Completed {context.operation} in {duration:.3f}s")
 
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ):
         """Record failed operation."""
         duration = (datetime.now() - context.metadata["start_time"]).total_seconds()
         self._record_metric(context.operation, duration, success=False)
@@ -392,6 +392,7 @@ class ObservabilityMiddleware(BaseMiddleware):
         logger.error(f"❌ Failed {context.operation} after {duration:.3f}s: {error_msg}")
 
         raise error
+        yield  # pragma: no cover
 
 
 # =============================================================================

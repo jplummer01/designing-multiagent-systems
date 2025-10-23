@@ -62,6 +62,9 @@ agent = Agent(
     instructions="You solve tasks by delegating to the relevant agents or tools",
     model_client=model_client,
     tools=[weather_agent.as_tool(), analysis_agent.as_tool()],
+    example_tasks=[
+        "Get the current weather in New York and analyze recent sales data.",
+        "Provide a brief report on the weather in San Francisco and its impact on outdoor events.",]
 )
 
 

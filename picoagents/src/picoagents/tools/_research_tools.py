@@ -28,11 +28,177 @@ except ImportError:
     BS4_AVAILABLE = False
 
 try:
-    import arxiv  # type: ignore
+    import arxiv
 
     ARXIV_AVAILABLE = True
 except ImportError:
     ARXIV_AVAILABLE = False
+
+
+class GoogleSearchTool(BaseTool):
+    """Search the web using Google Custom Search API."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        cse_id: Optional[str] = None,
+        allowed_domains: Optional[List[str]] = None,
+        blocked_domains: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(
+            name="google_search",
+            description=(
+                "Search the web using Google Custom Search API. Returns titles, URLs, and snippets from search results. "
+                "Results are filtered based on allowed/blocked domain rules for security."
+            ),
+        )
+        self.api_key = api_key
+        self.cse_id = cse_id
+        self.allowed_domains = allowed_domains or []
+        self.blocked_domains = blocked_domains or []
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query string"},
+                "num_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (default: 5, max: 10)",
+                },
+                "language": {
+                    "type": "string",
+                    "description": "Language code for search results (e.g., en, es, fr)",
+                },
+                "country": {
+                    "type": "string",
+                    "description": "Country code for search results (e.g., us, uk, ca)",
+                },
+                "safe_search": {
+                    "type": "boolean",
+                    "description": "Enable safe search filtering (default: true)",
+                },
+            },
+            "required": ["query"],
+        }
+
+    async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
+        if not HTTPX_AVAILABLE:
+            return ToolResult(
+                success=False,
+                result=None,
+                error="httpx not installed. Install with: pip install httpx",
+                metadata={},
+            )
+
+        query = parameters["query"]
+        num_results = min(max(1, parameters.get("num_results", 5)), 10)
+        language = parameters.get("language", "en")
+        country = parameters.get("country")
+        safe_search = parameters.get("safe_search", True)
+
+        if not self.api_key or not self.cse_id:
+            return ToolResult(
+                success=False,
+                result=None,
+                error="Google API key and CSE ID not provided. Pass api_key and cse_id to GoogleSearchTool constructor.",
+                metadata={"query": query},
+            )
+
+        try:
+            search_params = {
+                "key": self.api_key,
+                "cx": self.cse_id,
+                "q": query,
+                "num": num_results,
+                "hl": language,
+                "safe": "active" if safe_search else "off",
+            }
+
+            if country:
+                search_params["gl"] = country
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://www.googleapis.com/customsearch/v1",
+                    params=search_params,
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+            results = []
+            if "items" in data:
+                for item in data.get("items", []):
+                    url = item.get("link", "")
+
+                    # Apply domain filtering
+                    if self._is_domain_allowed(url):
+                        results.append(
+                            {
+                                "title": item.get("title", ""),
+                                "url": url,
+                                "snippet": item.get("snippet", ""),
+                            }
+                        )
+
+            return ToolResult(
+                success=True,
+                result=results,
+                error=None,
+                metadata={
+                    "query": query,
+                    "count": len(results),
+                    "filtered": len(data.get("items", [])) - len(results),
+                },
+            )
+
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                result=None,
+                error=f"Google search failed: {str(e)}",
+                metadata={"query": query},
+            )
+
+    def _is_domain_allowed(self, url: str) -> bool:
+        """
+        Check if URL passes domain filtering rules.
+
+        Args:
+            url: URL to check
+
+        Returns:
+            True if URL is allowed, False otherwise
+        """
+        try:
+            from urllib.parse import urlparse
+
+            domain = urlparse(url).netloc.lower()
+
+            # Check blocked domains first
+            if self.blocked_domains:
+                for blocked in self.blocked_domains:
+                    blocked_lower = blocked.lower()
+                    # Match exact domain or subdomain (ends with .blocked_domain)
+                    if domain == blocked_lower or domain.endswith("." + blocked_lower):
+                        return False
+
+            # If allowed_domains is specified, only allow those
+            if self.allowed_domains:
+                for allowed in self.allowed_domains:
+                    allowed_lower = allowed.lower()
+                    # Match exact domain or subdomain (ends with .allowed_domain)
+                    if domain == allowed_lower or domain.endswith("." + allowed_lower):
+                        return True
+                return False  # Not in allowed list
+
+            # No restrictions or passed all checks
+            return True
+        except Exception:
+            # If parsing fails, be conservative and block
+            return False
 
 
 class WebSearchTool(BaseTool):
@@ -469,12 +635,18 @@ class ArxivSearchTool(BaseTool):
             )
 
 
-def create_research_tools(tavily_api_key: Optional[str] = None) -> Sequence[BaseTool]:
+def create_research_tools(
+    tavily_api_key: Optional[str] = None,
+    google_api_key: Optional[str] = None,
+    google_cse_id: Optional[str] = None,
+) -> Sequence[BaseTool]:
     """
     Create a list of research tools for information retrieval.
 
     Args:
         tavily_api_key: Optional API key for Tavily web search
+        google_api_key: Optional API key for Google Custom Search
+        google_cse_id: Optional Custom Search Engine ID for Google search
 
     Returns:
         List of research tool instances
@@ -485,7 +657,14 @@ def create_research_tools(tavily_api_key: Optional[str] = None) -> Sequence[Base
     tools: List[BaseTool] = []
 
     if HTTPX_AVAILABLE:
-        tools.append(WebSearchTool(api_key=tavily_api_key))
+        # Add Google search if credentials provided
+        if google_api_key and google_cse_id:
+            tools.append(GoogleSearchTool(api_key=google_api_key, cse_id=google_cse_id))
+
+        # Add Tavily search if API key provided
+        if tavily_api_key:
+            tools.append(WebSearchTool(api_key=tavily_api_key))
+
         tools.append(WebFetchTool())
 
     if BS4_AVAILABLE:

@@ -3,6 +3,12 @@ Middleware system for picoagents.
 
 This module provides the middleware infrastructure for intercepting and processing
 agent operations like model calls, tool calls, and memory access.
+
+Middleware uses async generators to support:
+- Event emission (for observability)
+- Approval requests (pausing execution)
+- Streaming transformations
+- Error recovery
 """
 
 import asyncio
@@ -10,12 +16,16 @@ import logging
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from .context import AgentContext
 from .messages import Message
+
+if TYPE_CHECKING:
+    from .types import AgentEvent
 
 
 class MiddlewareContext(BaseModel):
@@ -38,28 +48,56 @@ class BaseMiddleware(ABC):
     """
     Abstract base class for middleware components.
 
-    Middleware can intercept and modify requests/responses for agent operations.
-    Each middleware instance can maintain its own state.
+    Middleware intercepts agent operations and can:
+    - Emit events for observability (logs, metrics, approval requests)
+    - Transform requests/responses
+    - Pause execution (e.g., for approval)
+    - Handle errors with recovery
+
+    All middleware methods are async generators that yield events and/or results.
     """
 
     @abstractmethod
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """
         Process before the operation executes.
 
-        Args:
-            context: The middleware context
+        Yields:
+            - AgentEvent: Events for observability (logs, approval requests, etc)
+            - MiddlewareContext: Final yield MUST be the context (modified or original)
 
-        Returns:
-            Modified context (or same context if no changes)
+        To pause execution for approval:
+            ```python
+            yield ToolApprovalEvent(approval_request=req)
+            return  # Don't yield context - agent will pause
+            ```
+
+        Example:
+            ```python
+            async def process_request(self, context):
+                # Emit log event
+                yield LogEvent(message="Processing request")
+
+                # Check if approval needed
+                if needs_approval:
+                    yield ToolApprovalEvent(approval_request=req)
+                    return  # PAUSE - don't yield context
+
+                # Continue execution
+                yield context
+            ```
 
         Raises:
-            Exception: To abort the operation
+            Exception: To abort the operation (caught by process_error)
         """
-        return context
+        yield context
 
     @abstractmethod
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """
         Process after the operation completes successfully.
 
@@ -67,15 +105,27 @@ class BaseMiddleware(ABC):
             context: The middleware context
             result: The operation result
 
-        Returns:
-            Modified result (or same result if no changes)
+        Yields:
+            - AgentEvent: Events for observability
+            - Any: Final yield MUST be the result (modified or original)
+
+        Example:
+            ```python
+            async def process_response(self, context, result):
+                # Emit metric event
+                yield MetricEvent(duration=elapsed)
+
+                # Modify result
+                result.metadata["processed"] = True
+                yield result
+            ```
         """
-        return result
+        yield result
 
     @abstractmethod
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """
         Handle errors from the operation.
 
@@ -83,17 +133,31 @@ class BaseMiddleware(ABC):
             context: The middleware context
             error: The exception that occurred
 
-        Returns:
-            Recovery value to use instead of raising error, or None to propagate error
+        Yields:
+            - AgentEvent: Events for observability
+            - Any: Recovery value to use instead of raising error
 
-        Raises:
-            Exception: Re-raise or raise new exception
+        To propagate the error (no recovery):
+            ```python
+            async def process_error(self, context, error):
+                yield ErrorEvent(error=str(error))
+                raise error
+            ```
+
+        To recover from error:
+            ```python
+            async def process_error(self, context, error):
+                yield ErrorEvent(error=str(error))
+                yield default_value  # Use this instead of raising
+            ```
         """
+        if False:  # Type checker hint - never executed
+            yield
         raise error
 
 
 class MiddlewareChain:
-    """Executes a chain of middleware in sequence."""
+    """Executes a chain of middleware as async generator pipeline."""
 
     def __init__(self, middlewares: Optional[List[BaseMiddleware]] = None):
         """
@@ -113,16 +177,20 @@ class MiddlewareChain:
         if middleware in self.middlewares:
             self.middlewares.remove(middleware)
 
-    async def execute(
+    async def execute_stream(
         self,
         operation: str,
         agent_name: str,
         agent_context: AgentContext,
         data: Any,
         func: Callable,
-    ) -> Any:
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """
-        Execute the middleware chain around an operation.
+        Execute the middleware chain with streaming support.
+
+        This method processes requests through middleware, executes the operation,
+        and processes responses, all while yielding events for observability.
 
         Args:
             operation: Type of operation being performed
@@ -130,9 +198,17 @@ class MiddlewareChain:
             agent_context: Agent's context
             data: Operation-specific data
             func: The actual operation to execute
+            metadata: Optional metadata to pass to middleware
 
-        Returns:
-            Result from the operation (possibly modified by middleware)
+        Yields:
+            - AgentEvent: Events from middleware (logs, metrics, approval requests)
+            - Any: Final result from the operation
+
+        The execution flow:
+            1. Pre-process through middleware (forward order) - yields events
+            2. Execute the operation
+            3. Post-process through middleware (reverse order) - yields events
+            4. Yield final result
         """
         # Create middleware context
         ctx = MiddlewareContext(
@@ -140,54 +216,274 @@ class MiddlewareChain:
             agent_name=agent_name,
             agent_context=agent_context,
             data=data,
+            metadata=metadata or {},
         )
 
-        # Pre-process through all middleware (forward order)
+        # PHASE 1: Pre-process through all middleware (forward order)
         for middleware in self.middlewares:
             try:
-                ctx = await middleware.process_request(ctx)
+                final_ctx = None
+                async for item in middleware.process_request(ctx):
+                    # Import here to avoid circular dependency
+                    from .types import (
+                        ErrorEvent,
+                        FatalErrorEvent,
+                        MemoryRetrievalEvent,
+                        MemoryUpdateEvent,
+                        ModelCallEvent,
+                        ModelResponseEvent,
+                        ModelStreamChunkEvent,
+                        TaskCompleteEvent,
+                        TaskStartEvent,
+                        ToolApprovalEvent,
+                        ToolCallEvent,
+                        ToolCallResponseEvent,
+                        ToolValidationEvent,
+                    )
+
+                    if isinstance(item, MiddlewareContext):
+                        # This is the final context
+                        final_ctx = item
+                    elif isinstance(
+                        item,
+                        (
+                            TaskStartEvent,
+                            TaskCompleteEvent,
+                            ModelCallEvent,
+                            ModelResponseEvent,
+                            ModelStreamChunkEvent,
+                            ToolCallEvent,
+                            ToolCallResponseEvent,
+                            ToolApprovalEvent,
+                            ToolValidationEvent,
+                            MemoryUpdateEvent,
+                            MemoryRetrievalEvent,
+                            ErrorEvent,
+                            FatalErrorEvent,
+                        ),
+                    ):
+                        # Middleware emitted an event
+                        yield item
+
+                        # Check if middleware requested approval (pause execution)
+                        if isinstance(item, ToolApprovalEvent):
+                            return  # STOP - wait for approval
+
+                if final_ctx is None:
+                    # Middleware didn't yield context - it must have paused
+                    return
+
+                ctx = final_ctx
+
             except Exception as e:
-                # Middleware can abort the operation by raising an exception
-                # Try error handlers in reverse order
-                for error_middleware in reversed(self.middlewares):
+                # Middleware raised exception - try error handlers (reverse order)
+                recovered = False
+                for error_mw in reversed(self.middlewares):
                     try:
-                        result = await error_middleware.process_error(ctx, e)
-                        if result is not None:
-                            return result
+                        async for item in error_mw.process_error(ctx, e):
+                            from .types import (
+                                ErrorEvent,
+                                FatalErrorEvent,
+                                MemoryRetrievalEvent,
+                                MemoryUpdateEvent,
+                                ModelCallEvent,
+                                ModelResponseEvent,
+                                ModelStreamChunkEvent,
+                                TaskCompleteEvent,
+                                TaskStartEvent,
+                                ToolApprovalEvent,
+                                ToolCallEvent,
+                                ToolCallResponseEvent,
+                                ToolValidationEvent,
+                            )
+
+                            if isinstance(
+                                item,
+                                (
+                                    TaskStartEvent,
+                                    TaskCompleteEvent,
+                                    ModelCallEvent,
+                                    ModelResponseEvent,
+                                    ModelStreamChunkEvent,
+                                    ToolCallEvent,
+                                    ToolCallResponseEvent,
+                                    ToolApprovalEvent,
+                                    ToolValidationEvent,
+                                    MemoryUpdateEvent,
+                                    MemoryRetrievalEvent,
+                                    ErrorEvent,
+                                    FatalErrorEvent,
+                                ),
+                            ):
+                                yield item
+                            else:
+                                # Middleware recovered - yield recovery value and stop
+                                yield item
+                                recovered = True
+                                return
                     except Exception:
                         continue
-                raise e
 
-        # Execute the actual operation with processed data
+                if not recovered:
+                    raise e
+
+        # PHASE 2: Execute actual operation
+        # result is guaranteed to be assigned before PHASE 3 due to exception handling
+        result: Any
         try:
             result = await func(ctx.data)
         except Exception as e:
             # Error handling through middleware (reverse order)
+            recovered = False
             for middleware in reversed(self.middlewares):
                 try:
-                    recovered = await middleware.process_error(ctx, e)
-                    if recovered is not None:
-                        return recovered
+                    async for item in middleware.process_error(ctx, e):
+                        from .types import (
+                            ErrorEvent,
+                            FatalErrorEvent,
+                            MemoryRetrievalEvent,
+                            MemoryUpdateEvent,
+                            ModelCallEvent,
+                            ModelResponseEvent,
+                            ModelStreamChunkEvent,
+                            TaskCompleteEvent,
+                            TaskStartEvent,
+                            ToolApprovalEvent,
+                            ToolCallEvent,
+                            ToolCallResponseEvent,
+                            ToolValidationEvent,
+                        )
+
+                        if isinstance(
+                            item,
+                            (
+                                TaskStartEvent,
+                                TaskCompleteEvent,
+                                ModelCallEvent,
+                                ModelResponseEvent,
+                                ModelStreamChunkEvent,
+                                ToolCallEvent,
+                                ToolCallResponseEvent,
+                                ToolApprovalEvent,
+                                ToolValidationEvent,
+                                MemoryUpdateEvent,
+                                MemoryRetrievalEvent,
+                                ErrorEvent,
+                                FatalErrorEvent,
+                            ),
+                        ):
+                            yield item
+                        else:
+                            # Middleware recovered - yield recovery value
+                            yield item
+                            recovered = True
+                            return
                 except Exception:
                     continue
-            raise e
 
-        # Post-process through all middleware (reverse order)
+            if not recovered:
+                raise e
+            # If we reach here, middleware recovered but didn't return (shouldn't happen)
+            # This path is unreachable in practice, but we assign result for type checker
+            raise RuntimeError("Middleware recovery logic error")  # pragma: no cover
+
+        # PHASE 3: Post-process through middleware (reverse order)
         for middleware in reversed(self.middlewares):
             try:
-                result = await middleware.process_response(ctx, result)
+                final_result = None
+                async for item in middleware.process_response(ctx, result):
+                    # Import event types to check
+                    from .types import (
+                        ErrorEvent,
+                        FatalErrorEvent,
+                        MemoryRetrievalEvent,
+                        MemoryUpdateEvent,
+                        ModelCallEvent,
+                        ModelResponseEvent,
+                        ModelStreamChunkEvent,
+                        TaskCompleteEvent,
+                        TaskStartEvent,
+                        ToolApprovalEvent,
+                        ToolCallEvent,
+                        ToolCallResponseEvent,
+                        ToolValidationEvent,
+                    )
+
+                    # Check if item is an event type (avoid isinstance with Union)
+                    if isinstance(
+                        item,
+                        (
+                            TaskStartEvent,
+                            TaskCompleteEvent,
+                            ModelCallEvent,
+                            ModelResponseEvent,
+                            ModelStreamChunkEvent,
+                            ToolCallEvent,
+                            ToolCallResponseEvent,
+                            ToolApprovalEvent,
+                            ToolValidationEvent,
+                            MemoryUpdateEvent,
+                            MemoryRetrievalEvent,
+                            ErrorEvent,
+                            FatalErrorEvent,
+                        ),
+                    ):
+                        yield item
+                    else:
+                        final_result = item
+
+                result = final_result if final_result is not None else result
+
             except Exception as e:
-                # Handle errors in response processing
-                for error_middleware in reversed(self.middlewares):
+                # Error in response processing
+                for error_mw in reversed(self.middlewares):
                     try:
-                        recovered = await error_middleware.process_error(ctx, e)
-                        if recovered is not None:
-                            return recovered
+                        async for item in error_mw.process_error(ctx, e):
+                            # Import event types
+                            from .types import (
+                                ErrorEvent,
+                                FatalErrorEvent,
+                                MemoryRetrievalEvent,
+                                MemoryUpdateEvent,
+                                ModelCallEvent,
+                                ModelResponseEvent,
+                                ModelStreamChunkEvent,
+                                TaskCompleteEvent,
+                                TaskStartEvent,
+                                ToolApprovalEvent,
+                                ToolCallEvent,
+                                ToolCallResponseEvent,
+                                ToolValidationEvent,
+                            )
+
+                            if isinstance(
+                                item,
+                                (
+                                    TaskStartEvent,
+                                    TaskCompleteEvent,
+                                    ModelCallEvent,
+                                    ModelResponseEvent,
+                                    ModelStreamChunkEvent,
+                                    ToolCallEvent,
+                                    ToolCallResponseEvent,
+                                    ToolApprovalEvent,
+                                    ToolValidationEvent,
+                                    MemoryUpdateEvent,
+                                    MemoryRetrievalEvent,
+                                    ErrorEvent,
+                                    FatalErrorEvent,
+                                ),
+                            ):
+                                yield item
+                            else:
+                                yield item
+                                return
                     except Exception:
                         continue
                 raise e
 
-        return result
+        # Yield final result
+        yield result
 
 
 # Example Middleware Implementations
@@ -199,7 +495,9 @@ class LoggingMiddleware(BaseMiddleware):
     def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """Log operation start."""
         self.logger.info(
             f"[{context.agent_name}] Starting {context.operation}",
@@ -210,9 +508,11 @@ class LoggingMiddleware(BaseMiddleware):
             },
         )
         context.metadata["start_time"] = time.time()
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """Log operation completion."""
         duration = time.time() - context.metadata.get("start_time", 0)
         self.logger.info(
@@ -224,11 +524,11 @@ class LoggingMiddleware(BaseMiddleware):
                 "session_id": context.agent_context.session_id,
             },
         )
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """Log operation error."""
         self.logger.error(
             f"[{context.agent_name}] Error in {context.operation}: {error}",
@@ -239,6 +539,8 @@ class LoggingMiddleware(BaseMiddleware):
                 "session_id": context.agent_context.session_id,
             },
         )
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -255,7 +557,9 @@ class RateLimitMiddleware(BaseMiddleware):
         self.max_calls = max_calls_per_minute
         self.call_times: List[float] = []  # Stateful tracking of call times
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """Check and enforce rate limit."""
         now = time.time()
 
@@ -273,16 +577,20 @@ class RateLimitMiddleware(BaseMiddleware):
 
         # Record this call
         self.call_times.append(now)
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """No response processing needed."""
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """No error recovery."""
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -313,7 +621,9 @@ class PIIRedactionMiddleware(BaseMiddleware):
             text = re.sub(pattern, replacement, text)
         return text
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """Redact PII from inputs."""
         if context.operation == "model_call" and isinstance(context.data, list):
             # Create new messages with redacted content (since messages are frozen)
@@ -344,9 +654,11 @@ class PIIRedactionMiddleware(BaseMiddleware):
                         params[key] = self._redact_text(value)
                 # Create new tool call with redacted parameters
                 context.data = context.data.model_copy(update={"parameters": params})
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """Redact PII from outputs."""
         if context.operation == "model_call":
             # Redact from model response
@@ -365,12 +677,14 @@ class PIIRedactionMiddleware(BaseMiddleware):
                 redacted_result = self._redact_text(result.result)
                 if redacted_result != result.result:
                     result = result.model_copy(update={"result": redacted_result})
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """No error recovery."""
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -392,7 +706,9 @@ class GuardrailMiddleware(BaseMiddleware):
         self.blocked_tools = blocked_tools or []
         self.blocked_patterns = [re.compile(p) for p in (blocked_patterns or [])]
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """Check for policy violations."""
         if context.operation == "tool_call":
             # Block dangerous tools
@@ -419,16 +735,20 @@ class GuardrailMiddleware(BaseMiddleware):
                                 f"Message contains blocked pattern: {pattern.pattern}"
                             )
 
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """No response processing."""
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """No error recovery."""
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -445,16 +765,20 @@ class MetricsMiddleware(BaseMiddleware):
             "operation_durations": [],
         }
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(
+        self, context: MiddlewareContext
+    ) -> AsyncGenerator[Union[MiddlewareContext, "AgentEvent"], None]:
         """Track operation start."""
         self.metrics["total_operations"] += 1
         self.metrics["operations_by_type"][context.operation] = (
             self.metrics["operations_by_type"].get(context.operation, 0) + 1
         )
         context.metadata["metrics_start_time"] = time.time()
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(
+        self, context: MiddlewareContext, result: Any
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """Track operation completion."""
         duration = time.time() - context.metadata.get("metrics_start_time", 0)
         self.metrics["total_duration"] += duration
@@ -466,16 +790,18 @@ class MetricsMiddleware(BaseMiddleware):
                 -100:
             ]
 
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ) -> AsyncGenerator[Union[Any, "AgentEvent"], None]:
         """Track operation errors."""
         error_type = type(error).__name__
         self.metrics["errors_by_type"][error_type] = (
             self.metrics["errors_by_type"].get(error_type, 0) + 1
         )
+        if False:  # Type checker hint
+            yield
         raise error
 
     def get_metrics(self) -> Dict[str, Any]:

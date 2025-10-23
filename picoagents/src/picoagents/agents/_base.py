@@ -48,6 +48,7 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
         output_format: Optional[Type[BaseModel]] = None,
         summarize_tool_result: bool = True,
         required_tools: Optional[List[str]] = None,
+        example_tasks: Optional[List[str]] = None,
         **kwargs: Any,
     ):
         """
@@ -66,6 +67,7 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
             output_format: Optional Pydantic model for structured output
             summarize_tool_result: If False, agent stops after tool execution without LLM summarization
             required_tools: Optional list of tool names that MUST be used (forced tool use)
+            example_tasks: Optional list of example tasks to help users discover agent capabilities
             **kwargs: Additional configuration
         """
         self.name = name
@@ -80,6 +82,7 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
         self.output_format = output_format
         self.summarize_tool_result = summarize_tool_result
         self.required_tools = required_tools or []
+        self.example_tasks = example_tasks or []
 
         # Validate configuration
         self._validate_configuration()

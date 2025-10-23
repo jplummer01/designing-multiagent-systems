@@ -6,18 +6,28 @@ __pycache__/
 *$py.class
 CLAUDE.md
 *.DS_Store
-
+checkpoints/*
 */work_dir
 .chainlit
-.files 
+.files
 chainlit.md
 *.env
 /data*
-.run_samples.sh 
+.run_samples.sh
 tests/test_fresh_install.sh
 
 
 test_fresh_install.sh
+
+# Agent example artifacts - created when running agent examples
+agent_workspace/
+agent_memory/
+*_workspace/
+*_memory/
+*.json
+!pyproject.toml
+!package.json
+!tsconfig.json
 # C extensions
 *.so
 

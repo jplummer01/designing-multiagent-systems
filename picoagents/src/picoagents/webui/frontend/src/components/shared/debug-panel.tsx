@@ -33,6 +33,8 @@ const getEventIcon = (eventType: string) => {
       return <MessageSquare className="h-4 w-4 text-blue-400" />;
     case "tool_call":
       return <Activity className="h-4 w-4" />;
+    case "tool_approval":
+      return <AlertCircle className="h-4 w-4 text-amber-600" />;
     case "error":
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     case "complete":
@@ -49,6 +51,8 @@ const getEventBadgeVariant = (eventType: string) => {
   switch (eventType) {
     case "error":
       return "destructive" as const;
+    case "tool_approval":
+      return "default" as const;
     case "complete":
     case "workflow_completed":
       return "default" as const;

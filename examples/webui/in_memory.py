@@ -12,6 +12,7 @@ from picoagents import Agent
 from picoagents.llm._azure_openai import AzureOpenAIChatCompletionClient
 from picoagents.orchestration import RoundRobinOrchestrator
 from picoagents.termination import MaxMessageTermination
+from picoagents.tools import tool, ApprovalMode
 from picoagents.webui import serve
 
 
@@ -32,6 +33,29 @@ def calculate(expression: str) -> str:
         return f"The result is {result}"
     except Exception as e:
         return f"Error: {e}"
+
+
+# Tools that require approval
+@tool(approval_mode=ApprovalMode.ALWAYS)
+def send_email(to: str, subject: str, body: str) -> str:
+    """Send an email to a recipient. Requires approval before sending.
+
+    Args:
+        to: Email address of recipient
+        subject: Email subject line
+        body: Email body content
+    """
+    return f"Email sent to {to} with subject '{subject}'"
+
+
+@tool(approval_mode=ApprovalMode.ALWAYS)
+def delete_file(path: str) -> str:
+    """Delete a file. Requires approval before deletion.
+
+    Args:
+        path: Path to the file to delete
+    """
+    return f"File deleted: {path}"
 
 
 # Create a weather assistant agent
@@ -82,6 +106,29 @@ assistant_team = RoundRobinOrchestrator(
     termination=MaxMessageTermination(max_messages=10),
 )
 
+# Create an agent with approval-required tools
+approval_agent = Agent(
+    name="approval_demo",
+    description="Demo agent with tool approval - test the approval dialog",
+    instructions="""You are a helpful assistant with access to tools.
+
+When asked to perform an action:
+1. ALWAYS call the appropriate tool immediately
+2. Do NOT ask for permission - the approval system will handle that
+3. Use send_email for email tasks
+4. Use delete_file for file deletion
+5. Use get_weather for weather information
+
+Be direct and use tools without hesitation.""",
+    model_client=AzureOpenAIChatCompletionClient(
+        azure_deployment="gpt-4.1-mini",
+        azure_endpoint=os.environ.get(
+            "AZURE_OPENAI_ENDPOINT", "https://your-endpoint.openai.azure.com/"
+        ),
+    ),
+    tools=[send_email, delete_file, get_weather],
+)
+
 if __name__ == "__main__":
     # Serve all entities via web interface
     print("🚀 Starting PicoAgents WebUI with in-memory entities...")
@@ -89,11 +136,12 @@ if __name__ == "__main__":
     print("  • weather_assistant (Agent) - Weather information")
     print("  • math_assistant (Agent) - Math calculations")
     print("  • general_assistant (Agent) - Weather + Math")
-    print("  • assistant_team (Orchestrator) - Coordinated team\n")
+    print("  • assistant_team (Orchestrator) - Coordinated team")
+    print("  • approval_demo (Agent) - Test tool approval flow\n")
 
     # Serve only these in-memory entities (no directory scanning)
     serve(
-        entities=[weather_agent, math_agent, general_agent, assistant_team],
+        entities=[weather_agent, math_agent, general_agent, assistant_team, approval_agent],
         port=8070,
         auto_open=True,
     )

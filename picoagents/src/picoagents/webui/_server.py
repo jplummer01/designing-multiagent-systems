@@ -4,6 +4,7 @@ FastAPI server for PicoAgents WebUI.
 Provides REST API endpoints and serves the frontend UI.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,6 +16,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .._cancellation_token import CancellationToken
+from ..context import ToolApprovalResponse
 from ..messages import Message
 from ..types import AgentResponse
 from ._execution import ExecutionEngine
@@ -37,6 +40,9 @@ class RunEntityRequest(BaseModel):
     )
     stream_tokens: bool = Field(
         True, description="Enable token-level streaming for agents (default: True)"
+    )
+    approval_responses: Optional[List[ToolApprovalResponse]] = Field(
+        None, description="Tool approval responses to inject into session context"
     )
 
 
@@ -200,52 +206,78 @@ class PicoAgentsWebUIServer:
                     status_code=404, detail=f"Entity info for {entity_id} not found"
                 )
 
+            # Create cancellation token for this request
+            cancellation_token = CancellationToken()
+
+            async def cancellable_generator():
+                """Wraps the event generator to detect client disconnect and trigger cancellation."""
+                try:
+                    if entity_info.type == "agent":
+                        # Allow empty messages if approval_responses provided (resuming after approval)
+                        if not request.messages and not request.approval_responses:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Messages required for agent execution",
+                            )
+
+                        event_generator = self.execution_engine.execute_agent_stream(
+                            agent=entity_obj,
+                            messages=cast(List[Any], request.messages)
+                            if request.messages
+                            else [],
+                            session_id=request.session_id,
+                            stream_tokens=request.stream_tokens,
+                            approval_responses=request.approval_responses,
+                            cancellation_token=cancellation_token,
+                        )
+                    elif entity_info.type == "orchestrator":
+                        if not request.messages:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Messages required for orchestrator execution",
+                            )
+
+                        event_generator = self.execution_engine.execute_orchestrator_stream(
+                            orchestrator=entity_obj,
+                            messages=cast(List[Any], request.messages),
+                            session_id=request.session_id,
+                            cancellation_token=cancellation_token,
+                        )
+                    elif entity_info.type == "workflow":
+                        if request.input_data is None:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Input data required for workflow execution",
+                            )
+
+                        event_generator = self.execution_engine.execute_workflow_stream(
+                            workflow=entity_obj,
+                            input_data=request.input_data,
+                            session_id=request.session_id,
+                            cancellation_token=cancellation_token,
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Unknown entity type: {entity_info.type}",
+                        )
+
+                    # Stream events until completion or cancellation
+                    async for event in event_generator:
+                        yield event
+
+                except (GeneratorExit, asyncio.CancelledError):
+                    # Client disconnected - trigger cancellation
+                    logger.info(
+                        f"Client disconnected for {entity_info.type} {entity_id}, "
+                        f"session {request.session_id}, triggering cancellation"
+                    )
+                    cancellation_token.cancel()
+                    raise
+
             try:
-                if entity_info.type == "agent":
-                    if not request.messages:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Messages required for agent execution",
-                        )
-
-                    event_generator = self.execution_engine.execute_agent_stream(
-                        agent=entity_obj,
-                        messages=cast(List[Any], request.messages),
-                        session_id=request.session_id,
-                        stream_tokens=request.stream_tokens,
-                    )
-                elif entity_info.type == "orchestrator":
-                    if not request.messages:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Messages required for orchestrator execution",
-                        )
-
-                    event_generator = self.execution_engine.execute_orchestrator_stream(
-                        orchestrator=entity_obj,
-                        messages=cast(List[Any], request.messages),
-                        session_id=request.session_id,
-                    )
-                elif entity_info.type == "workflow":
-                    if request.input_data is None:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Input data required for workflow execution",
-                        )
-
-                    event_generator = self.execution_engine.execute_workflow_stream(
-                        workflow=entity_obj,
-                        input_data=request.input_data,
-                        session_id=request.session_id,
-                    )
-                else:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Unknown entity type: {entity_info.type}",
-                    )
-
                 return StreamingResponse(
-                    event_generator,
+                    cancellable_generator(),
                     media_type="text/event-stream",
                     headers={
                         "Cache-Control": "no-cache",

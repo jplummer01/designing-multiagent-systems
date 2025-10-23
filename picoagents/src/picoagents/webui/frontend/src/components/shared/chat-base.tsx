@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageInput } from "@/components/ui/message-input";
 import { MessageRenderer } from "@/components/message_renderer";
-import { User, Bot, Trash2 } from "lucide-react";
+import { User, Bot, Trash2, StopCircle, ArrowUp, ArrowDown } from "lucide-react";
 import type { Message, UserMessage } from "@/types";
 import type { AttachmentItem } from "@/components/ui/attachment-gallery";
 import { createMultiModalMessage } from "@/utils/message-utils";
@@ -17,18 +17,24 @@ interface ChatBaseProps {
   messages: Message[];
   onSendMessage: (messages: Message[]) => Promise<void>; // Updated to accept Message array
   onClearMessages: () => void;
+  onStop?: () => void; // Optional callback to stop streaming
   isStreaming: boolean;
   placeholder?: string;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+  emptyStateCustom?: React.ReactNode; // Optional custom empty state component
+  beforeInput?: React.ReactNode; // Optional content to render above input (e.g., approval banner)
+  messageUsage?: Map<number, { tokens_input: number; tokens_output: number }>; // Optional token usage per message
+  sessionTotalUsage?: { tokens_input: number; tokens_output: number }; // Optional session total
 }
 
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
+  usage?: { tokens_input: number; tokens_output: number }; // Optional usage for this message
 }
 
-function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+function MessageBubble({ message, isStreaming, usage }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const Icon = isUser ? User : Bot;
 
@@ -57,6 +63,19 @@ function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             isStreaming={isStreaming}
           />
         </div>
+        {/* Token usage - only show for assistant messages with usage data */}
+        {!isUser && usage && (usage.tokens_input > 0 || usage.tokens_output > 0) && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+            <div className="flex items-center gap-1">
+              <ArrowUp className="h-3 w-3" />
+              <span>{usage.tokens_input.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ArrowDown className="h-3 w-3" />
+              <span>{usage.tokens_output.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -83,10 +102,15 @@ export function ChatBase({
   messages,
   onSendMessage,
   onClearMessages,
+  onStop,
   isStreaming,
   placeholder = "Type a message...",
   emptyStateTitle = "Start a conversation",
   emptyStateDescription = "Type a message below to begin",
+  emptyStateCustom,
+  beforeInput,
+  messageUsage,
+  sessionTotalUsage,
 }: ChatBaseProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -142,12 +166,14 @@ export function ChatBase({
       <ScrollArea className="flex-1 min-h-0 p-4 overflow-auto" ref={scrollAreaRef}>
         <div className="space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-center">
-              <div className="text-muted-foreground text-sm">{emptyStateTitle}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {emptyStateDescription}
+            emptyStateCustom || (
+              <div className="flex flex-col items-center justify-center h-32 text-center">
+                <div className="text-muted-foreground text-sm">{emptyStateTitle}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {emptyStateDescription}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <>
               {messages.map((message, index) => {
@@ -155,11 +181,15 @@ export function ChatBase({
                 const isLastMessage = index === messages.length - 1;
                 const shouldShowStreaming = isStreaming && isLastMessage && message.role === "assistant";
 
+                // Get usage for this message if available
+                const usage = messageUsage?.get(index);
+
                 return (
                   <MessageBubble
                     key={index}
                     message={message}
                     isStreaming={shouldShowStreaming}
+                    usage={usage}
                   />
                 );
               })}
@@ -170,21 +200,37 @@ export function ChatBase({
         </div>
       </ScrollArea>
 
-      {/* Clear Messages Button */}
-      {messages.length > 0 && (
-        <div className="px-4 py-2 border-t">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearMessages}
-            disabled={isStreaming}
-            className="gap-1"
-          >
-            <Trash2 className="h-3 w-3" />
-            Clear Chat
-          </Button>
+      {/* Action Buttons */}
+      {(messages.length > 0 || isStreaming) && (
+        <div className="px-4 py-2 border-t flex gap-2">
+          {isStreaming && onStop && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onStop}
+              className="gap-1"
+            >
+              <StopCircle className="h-3 w-3" />
+              Stop
+            </Button>
+          )}
+          {messages.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClearMessages}
+              disabled={isStreaming}
+              className="gap-1"
+            >
+              <Trash2 className="h-3 w-3" />
+              Clear Chat
+            </Button>
+          )}
         </div>
       )}
+
+      {/* Optional content above input (e.g., approval banner) */}
+      {beforeInput}
 
       {/* Enhanced Input with File Upload */}
       <MessageInput

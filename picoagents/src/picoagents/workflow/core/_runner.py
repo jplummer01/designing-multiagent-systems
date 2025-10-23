@@ -10,7 +10,13 @@ from typing import Any, AsyncGenerator, Dict, Optional
 from picoagents import CancellationToken
 
 from ..steps._step import BaseStep
+from ._checkpoint import (
+    CheckpointConfig,
+    CheckpointValidationResult,
+    WorkflowCheckpoint,
+)
 from ._models import (
+    CheckpointSavedEvent,
     EdgeActivatedEvent,
     StepCompletedEvent,
     StepExecution,
@@ -22,6 +28,7 @@ from ._models import (
     WorkflowEvent,
     WorkflowExecution,
     WorkflowFailedEvent,
+    WorkflowResumedEvent,
     WorkflowStartedEvent,
     WorkflowStatus,
 )
@@ -92,6 +99,8 @@ class WorkflowRunner:
         workflow: Workflow,
         initial_input: Optional[Dict[str, Any]] = None,
         cancellation_token: Optional[CancellationToken] = None,
+        checkpoint: Optional[WorkflowCheckpoint] = None,
+        checkpoint_config: Optional[CheckpointConfig] = None,
     ) -> AsyncGenerator[WorkflowEvent, None]:
         """Run a workflow and yield real-time events.
 
@@ -99,6 +108,9 @@ class WorkflowRunner:
             workflow: Workflow to execute
             initial_input: Initial input data for the start step
             cancellation_token: Optional cancellation token for stopping execution
+            checkpoint: Optional checkpoint to resume from
+            checkpoint_config: Optional config for checkpoint behavior (defaults to
+                in-memory storage with auto-save enabled)
 
         Yields:
             WorkflowEvent: Real-time workflow events
@@ -112,59 +124,96 @@ class WorkflowRunner:
         if cancellation_token:
             self._cancellation_tokens[workflow.id] = cancellation_token
 
-        # Emit workflow started event
-        yield WorkflowStartedEvent(
-            timestamp=datetime.now(),
-            workflow_id=workflow.id,
-            initial_input=initial_input or {},
-        )
+        # Handle checkpoint resume
+        if checkpoint:
+            # Validate checkpoint compatibility
+            validation = self.validate_checkpoint(workflow, checkpoint)
 
-        # Validate workflow
-        validation = workflow.validate_workflow()
-        if not validation.is_valid:
-            error_msg = f"Workflow validation failed: {validation.errors}"
-            logger.error(error_msg)
-            yield WorkflowFailedEvent(
-                timestamp=datetime.now(), workflow_id=workflow.id, error=error_msg
+            if not validation.can_resume:
+                error_msg = f"Checkpoint validation failed: {validation.errors}"
+                logger.error(error_msg)
+                yield WorkflowFailedEvent(
+                    timestamp=datetime.now(), workflow_id=workflow.id, error=error_msg
+                )
+                return
+
+            # Emit warnings if any
+            if validation.warnings:
+                logger.warning(f"Checkpoint warnings: {validation.warnings}")
+
+            # Use checkpoint's execution state
+            execution = checkpoint.execution
+            logger.info(
+                f"Resuming from checkpoint: "
+                f"{len(checkpoint.completed_step_ids)} steps completed, "
+                f"{len(checkpoint.pending_step_ids)} pending"
             )
-            return
 
-        # Validate initial input matches start step's input type
-        if initial_input and workflow.start_step_id:
-            start_step = workflow.steps.get(workflow.start_step_id)
-            if start_step:
-                try:
-                    # Try to validate initial input against start step's input type
-                    start_step.input_type(**initial_input)
-                except Exception as e:
-                    error_msg = (
-                        f"Initial input validation failed: Input does not match start step '{workflow.start_step_id}' "
-                        f"input type {start_step.input_type.__name__}: {str(e)}"
-                    )
-                    logger.error(error_msg)
-                    yield WorkflowFailedEvent(
-                        timestamp=datetime.now(),
-                        workflow_id=workflow.id,
-                        error=error_msg,
-                    )
-                    return
+            # Emit resume event
+            yield WorkflowResumedEvent(
+                timestamp=datetime.now(),
+                workflow_id=workflow.id,
+                checkpoint_id=checkpoint.checkpoint_id,
+                completed_steps=checkpoint.completed_step_ids,
+                pending_steps=checkpoint.pending_step_ids,
+            )
+        else:
+            # Fresh start - emit started event
+            yield WorkflowStartedEvent(
+                timestamp=datetime.now(),
+                workflow_id=workflow.id,
+                initial_input=initial_input or {},
+            )
 
-        # Create execution record
-        execution = WorkflowExecution(
-            workflow_id=workflow.id,
-            status=WorkflowStatus.RUNNING,
-            start_time=datetime.now(),
-            state=workflow.initial_state.copy(),
-        )
+            # Validate workflow
+            validation = workflow.validate_workflow()
+            if not validation.is_valid:
+                error_msg = f"Workflow validation failed: {validation.errors}"
+                logger.error(error_msg)
+                yield WorkflowFailedEvent(
+                    timestamp=datetime.now(), workflow_id=workflow.id, error=error_msg
+                )
+                return
 
-        try:
-            # Add initial input to state if provided
+            # Validate initial input matches start step's input type
+            if initial_input and workflow.start_step_id:
+                start_step = workflow.steps.get(workflow.start_step_id)
+                if start_step:
+                    try:
+                        # Try to validate initial input against start step's input type
+                        start_step.input_type(**initial_input)
+                    except Exception as e:
+                        error_msg = (
+                            f"Initial input validation failed: Input does not match start step '{workflow.start_step_id}' "
+                            f"input type {start_step.input_type.__name__}: {str(e)}"
+                        )
+                        logger.error(error_msg)
+                        yield WorkflowFailedEvent(
+                            timestamp=datetime.now(),
+                            workflow_id=workflow.id,
+                            error=error_msg,
+                        )
+                        return
+
+            # Create fresh execution record
+            execution = WorkflowExecution(
+                workflow_id=workflow.id,
+                status=WorkflowStatus.RUNNING,
+                start_time=datetime.now(),
+                state=workflow.initial_state.copy(),
+            )
+
+            # Add initial input to state
             if initial_input:
                 execution.state.update(initial_input)
 
-            # Execute the workflow with streaming events
+        try:
+            # Execute the workflow with streaming events (with checkpoint support)
             async for event in self._execute_workflow_stream(
-                workflow, execution, initial_input or {}
+                workflow=workflow,
+                execution=execution,
+                initial_input=initial_input or {},
+                checkpoint_config=checkpoint_config,
             ):
                 yield event
 
@@ -216,6 +265,7 @@ class WorkflowRunner:
         workflow: Workflow,
         execution: WorkflowExecution,
         initial_input: Dict[str, Any],
+        checkpoint_config: Optional[CheckpointConfig] = None,
     ) -> AsyncGenerator[WorkflowEvent, None]:
         """Execute the workflow steps and yield events.
 
@@ -223,12 +273,26 @@ class WorkflowRunner:
             workflow: Workflow to execute
             execution: Execution context
             initial_input: Initial input data
+            checkpoint_config: Optional checkpoint configuration
 
         Yields:
             WorkflowEvent: Step execution events
         """
-        completed_steps: set[str] = set()
+        # Identify already-completed steps from checkpoint
+        completed_steps: set[str] = {
+            step_id
+            for step_id, step_exec in execution.step_executions.items()
+            if step_exec.status == StepStatus.COMPLETED
+        }
+
+        # Log resume info
+        if completed_steps:
+            logger.info(
+                f"Skipping {len(completed_steps)} completed steps: {completed_steps}"
+            )
+
         running_tasks: Dict[str, asyncio.Task[Dict[str, Any]]] = {}
+        steps_since_last_checkpoint = 0
 
         while len(completed_steps) < len(workflow.steps):
             # Check for cancellation before starting any new steps
@@ -374,6 +438,41 @@ class WorkflowRunner:
                                         to_step=edge.to_step,
                                         data=result,
                                     )
+
+                            # Auto-checkpoint logic
+                            steps_since_last_checkpoint += 1
+                            if checkpoint_config and checkpoint_config.auto_save:
+                                if (
+                                    steps_since_last_checkpoint
+                                    >= checkpoint_config.save_interval_steps
+                                ):
+                                    # Create checkpoint
+                                    checkpoint = self._create_checkpoint(
+                                        workflow=workflow,
+                                        execution=execution,
+                                        checkpoint_type="auto",
+                                    )
+
+                                    # Save using configured store
+                                    await checkpoint_config.store.save(checkpoint)
+
+                                    # Emit checkpoint event
+                                    yield CheckpointSavedEvent(
+                                        timestamp=datetime.now(),
+                                        workflow_id=workflow.id,
+                                        checkpoint_id=checkpoint.checkpoint_id,
+                                        completed_steps=len(completed_steps),
+                                        total_steps=len(workflow.steps),
+                                    )
+
+                                    # Auto-cleanup if enabled
+                                    if checkpoint_config.auto_cleanup:
+                                        await checkpoint_config.store.cleanup_old(
+                                            workflow_id=workflow.id,
+                                            keep_last_n=checkpoint_config.keep_last_n,
+                                        )
+
+                                    steps_since_last_checkpoint = 0
 
                         except asyncio.CancelledError:
                             step_execution.status = StepStatus.FAILED
@@ -596,6 +695,92 @@ class WorkflowRunner:
             },
             "error": execution.error,
         }
+
+    def validate_checkpoint(
+        self, workflow: Workflow, checkpoint: WorkflowCheckpoint
+    ) -> CheckpointValidationResult:
+        """
+        Validate if checkpoint is compatible with workflow.
+
+        Checks:
+        1. Workflow ID matches (warning if different)
+        2. Structure hash matches (error if different)
+        3. All completed steps still exist in workflow
+
+        Args:
+            workflow: Workflow to validate against
+            checkpoint: Checkpoint to validate
+
+        Returns:
+            Validation result with can_resume flag
+        """
+        result = CheckpointValidationResult(is_valid=True, can_resume=True)
+
+        # Check 1: Workflow ID match (warning only)
+        if checkpoint.workflow_id != workflow.id:
+            result.warnings.append(
+                f"Checkpoint workflow_id '{checkpoint.workflow_id}' differs from "
+                f"current workflow '{workflow.id}'. This is OK if you renamed the workflow."
+            )
+
+        # Check 2: Structure hash match (CRITICAL)
+        current_hash = workflow.compute_structure_hash()
+        if checkpoint.workflow_structure_hash != current_hash:
+            result.errors.append(
+                f"Workflow structure has changed since checkpoint was created. "
+                f"Cannot safely resume. "
+                f"Checkpoint hash: {checkpoint.workflow_structure_hash}, "
+                f"Current hash: {current_hash}"
+            )
+            result.is_valid = False
+            result.can_resume = False
+            return result
+
+        # Check 3: Completed steps still exist
+        for step_id in checkpoint.completed_step_ids:
+            if step_id not in workflow.steps:
+                result.errors.append(
+                    f"Checkpoint references completed step '{step_id}' "
+                    f"that no longer exists in workflow"
+                )
+                result.is_valid = False
+                result.can_resume = False
+
+        # Add helpful info
+        result.checkpoint_info = {
+            "created_at": checkpoint.created_at.isoformat(),
+            "completed_steps": len(checkpoint.completed_step_ids),
+            "pending_steps": len(checkpoint.pending_step_ids),
+            "checkpoint_type": checkpoint.checkpoint_type,
+        }
+
+        return result
+
+    def _create_checkpoint(
+        self,
+        workflow: Workflow,
+        execution: WorkflowExecution,
+        checkpoint_type: str = "manual",
+    ) -> WorkflowCheckpoint:
+        """
+        Create a checkpoint from current execution state.
+
+        Args:
+            workflow: Workflow being executed
+            execution: Current execution state
+            checkpoint_type: Type of checkpoint (manual, auto, etc.)
+
+        Returns:
+            WorkflowCheckpoint ready to save
+        """
+        return WorkflowCheckpoint.from_execution(
+            execution=execution,
+            workflow_id=workflow.id,
+            workflow_version=workflow.metadata.version,
+            workflow_structure_hash=workflow.compute_structure_hash(),
+            all_step_ids=list(workflow.steps.keys()),
+            checkpoint_type=checkpoint_type,
+        )
 
     async def cancel_workflow(
         self, workflow_id: str, reason: str = "Cancelled by user"

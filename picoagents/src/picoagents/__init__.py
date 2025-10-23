@@ -5,6 +5,17 @@ A lightweight, type-safe framework for building AI agents with LLMs.
 Supports tool calling, memory, streaming, and multi-agent orchestration.
 """
 
+# Auto-instrument with OpenTelemetry if enabled
+import os
+
+if os.getenv("PICOAGENTS_ENABLE_OTEL", "false").lower() in ("true", "1", "yes"):
+    try:
+        from ._otel import auto_instrument
+
+        auto_instrument()
+    except Exception:
+        pass  # Gracefully continue if instrumentation fails
+
 # Cancellation support
 from ._cancellation_token import CancellationToken
 
@@ -66,6 +77,13 @@ from .llm import (
 # Memory system
 from .memory import BaseMemory, FileMemory, ListMemory, MemoryContent, MemoryQueryResult
 
+# Context system
+from .context import (
+    AgentContext,
+    ToolApprovalRequest,
+    ToolApprovalResponse,
+)
+
 # Core message types
 from .messages import (
     AssistantMessage,
@@ -94,7 +112,7 @@ from .orchestration import (
 )
 
 # Tool system
-from .tools import BaseTool, FunctionTool
+from .tools import ApprovalMode, BaseTool, FunctionTool, tool
 
 # Core data types
 from .types import (
@@ -127,6 +145,10 @@ from .workflow import (
 __version__ = "0.1.2"
 
 __all__ = [
+    # Context
+    "AgentContext",
+    "ToolApprovalRequest",
+    "ToolApprovalResponse",
     # Messages
     "Message",
     "SystemMessage",
@@ -166,6 +188,8 @@ __all__ = [
     # Tools
     "BaseTool",
     "FunctionTool",
+    "ApprovalMode",
+    "tool",
     # Memory
     "BaseMemory",
     "MemoryContent",

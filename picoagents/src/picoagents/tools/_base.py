@@ -8,6 +8,7 @@ for tools that agents can use to interact with the world.
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,6 +31,13 @@ if TYPE_CHECKING:
     from ..types import AgentEvent
 
 
+class ApprovalMode(Enum):
+    """Tool approval requirements."""
+
+    NEVER = "never_require"
+    ALWAYS = "always_require"
+
+
 class BaseTool(ComponentBase[BaseModel], ABC):
     """
     Abstract base class that all tools must implement.
@@ -38,7 +46,13 @@ class BaseTool(ComponentBase[BaseModel], ABC):
     beyond text generation (e.g., web search, file operations, API calls).
     """
 
-    def __init__(self, name: str, description: str, version: str = "1.0.0"):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        version: str = "1.0.0",
+        approval_mode: ApprovalMode = ApprovalMode.NEVER,
+    ):
         """
         Initialize the base tool.
 
@@ -46,10 +60,12 @@ class BaseTool(ComponentBase[BaseModel], ABC):
             name: Unique tool identifier
             description: What the tool does (for LLM understanding)
             version: Tool version following semantic versioning (default: "1.0.0")
+            approval_mode: Whether approval is required before execution
         """
         self.name = name
         self.description = description
         self.version = version
+        self.approval_mode = approval_mode
 
     @property
     @abstractmethod
@@ -201,6 +217,7 @@ class FunctionTool(BaseTool):
         name: Optional[str] = None,
         description: Optional[str] = None,
         version: str = "1.0.0",
+        approval_mode: ApprovalMode = ApprovalMode.NEVER,
     ):
         """
         Create a tool from a Python function.
@@ -210,6 +227,7 @@ class FunctionTool(BaseTool):
             name: Optional custom name (defaults to function name)
             description: Optional custom description (defaults to function docstring)
             version: Tool version following semantic versioning (default: "1.0.0")
+            approval_mode: Whether approval is required before execution
         """
         self.func = func
         tool_name = name or func.__name__
@@ -217,7 +235,7 @@ class FunctionTool(BaseTool):
             description or func.__doc__ or f"Execute {func.__name__} function"
         )
 
-        super().__init__(tool_name, tool_description, version)
+        super().__init__(tool_name, tool_description, version, approval_mode)
 
         # Extract function metadata
         self.signature = inspect.signature(func)
@@ -228,6 +246,19 @@ class FunctionTool(BaseTool):
     def parameters(self) -> Dict[str, Any]:
         """Get JSON schema for function parameters."""
         return self._parameters_schema
+
+    def __call__(self, *args, **kwargs):
+        """
+        Make the tool callable like the original function.
+
+        This allows decorated functions to be called directly:
+            @tool
+            def get_weather(city: str) -> str:
+                return f"Weather in {city}"
+
+            result = get_weather("Seattle")  # Works!
+        """
+        return self.func(*args, **kwargs)
 
     async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
         """

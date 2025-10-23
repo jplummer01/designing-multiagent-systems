@@ -47,6 +47,11 @@ rag = [
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
 ]
+otel = [
+    "opentelemetry-api~=1.38.0",
+    "opentelemetry-sdk~=1.38.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.38.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -56,6 +61,7 @@ dev = [
     "black",
     "isort",
     "flake8",
+    "poethepoet",
 ]
 examples = [
     "matplotlib",
@@ -128,3 +134,20 @@ include = '\.pyi?$'
 [tool.isort]
 profile = "black"
 line_length = 88
+
+[tool.poe.tasks]
+# Type checking
+mypy = "mypy src/ --show-error-codes --ignore-missing-imports"
+pyright = "pyright src/"
+
+# Testing
+test = "pytest tests/ -v"
+test-cov = "pytest tests/ --cov=src/picoagents --cov-report=term-missing"
+
+# Code quality
+format-black = "black src/ examples/ tests/"
+format-isort = "isort src/ examples/ tests/"
+lint = "flake8 src/ examples/ tests/"
+
+# Run all checks
+check = ["mypy", "pyright", "lint", "test"]

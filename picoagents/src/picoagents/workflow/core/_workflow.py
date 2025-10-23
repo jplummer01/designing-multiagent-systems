@@ -674,6 +674,34 @@ class BaseWorkflow(ComponentBase[BaseModel]):
             "validation": self.validate_workflow().model_dump(),
         }
 
+    def compute_structure_hash(self) -> str:
+        """
+        Compute hash of workflow structure for checkpoint compatibility.
+
+        Hash includes:
+        - Step IDs and their types
+        - Edge connections (from_step, to_step, condition types)
+        - Start/end step IDs
+
+        Does NOT include:
+        - Step metadata (name, description, tags)
+        - Workflow metadata (author, created_at)
+
+        This allows safe resume even if metadata changes,
+        but prevents resume if structure changed.
+
+        Returns:
+            16-character hex hash string
+        """
+        from ._checkpoint import compute_workflow_structure_hash
+
+        return compute_workflow_structure_hash(
+            steps=self.steps,
+            edges=self.edges,
+            start_step_id=self.start_step_id,
+            end_step_ids=self.end_step_ids,
+        )
+
 
 class Workflow(BaseWorkflow, Component[WorkflowConfig]):
     """Concrete workflow implementation with component serialization support."""

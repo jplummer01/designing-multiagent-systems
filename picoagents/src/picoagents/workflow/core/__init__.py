@@ -2,6 +2,15 @@
 Core workflow engine components.
 """
 
+from ._checkpoint import (
+    CheckpointConfig,
+    CheckpointMetadata,
+    CheckpointStore,
+    CheckpointValidationResult,
+    FileCheckpointStore,
+    InMemoryCheckpointStore,
+    WorkflowCheckpoint,
+)
 from ._models import (
     Context,
     Edge,
@@ -26,6 +35,14 @@ __all__ = [
     "WorkflowConfig",
     # Runner
     "WorkflowRunner",
+    # Checkpoint classes
+    "WorkflowCheckpoint",
+    "CheckpointConfig",
+    "CheckpointStore",
+    "FileCheckpointStore",
+    "InMemoryCheckpointStore",
+    "CheckpointMetadata",
+    "CheckpointValidationResult",
     # Models and types
     "InputType",
     "OutputType",

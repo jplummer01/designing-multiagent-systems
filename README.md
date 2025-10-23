@@ -6,7 +6,7 @@ Official code repository for [Designing Multi-Agent Systems: Principles, Pattern
 
 ![Designing Multi-Agent Systems](./docs/images/bookcover.png)
 
-Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency so you can understand exactly how production systems are built.
+Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency.
 
 [📖 Buy Digital Edition](https://buy.multiagentbook.com) | [🛒 Buy Print - Coming Soon]()
 
@@ -39,7 +39,7 @@ The book is organized across 4 parts, taking you from theory to production:
 
 | Chapter  | Title                                 | Code                                                                                                                                                                                                                                                                                                                                                                                                                                    | Learning Outcome                                                                          |
 | -------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](examples/agents/basic-agent.py), [`memory.py`](examples/agents/memory.py), [`middleware.py`](examples/agents/middleware.py) <br> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/victordibia/designing-multiagent-systems/blob/main/examples/notebooks/01_basic_agent.ipynb) | Create production agents with tools, memory, streaming, and middleware                    |
+| **Ch 4** | Building Your First Agent             | [`agents/_agent.py`](picoagents/src/picoagents/agents/_agent.py), [`basic-agent.py`](examples/agents/basic-agent.py), [`memory.py`](examples/agents/memory.py), [`middleware.py`](examples/agents/middleware.py) <br> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/victordibia/designing-multiagent-systems/blob/main/examples/notebooks/01_basic_agent.ipynb) | Build agents with tools, memory, streaming, and middleware                    |
 | **Ch 5** | Computer Use Agents                   | [`agents/_computer_use/`](picoagents/src/picoagents/agents/_computer_use/), [`computer_use.py`](examples/agents/computer_use.py)                                                                                                                                                                                                                                                                                                        | Build browser automation agents with multimodal reasoning                                 |
 | **Ch 5** | Building Multi-Agent Workflows        | [`workflow/`](picoagents/src/picoagents/workflow/), [`data_visualization/`](examples/workflows/data_visualization/)                                                                                                                                                                                                                                                                                                                     | Build type-safe workflows with streaming observability                                    |
 | **Ch 6** | Autonomous Multi-Agent Orchestration  | [`orchestration/`](picoagents/src/picoagents/orchestration/), [`round-robin.py`](examples/orchestration/round-robin.py), [`ai-driven.py`](examples/orchestration/ai-driven.py), [`plan-based.py`](examples/orchestration/plan-based.py)                                                                                                                                                                                                 | Implement GroupChat, LLM-driven, and plan-based orchestration (Magentic One patterns)     |
@@ -62,7 +62,7 @@ The book is organized across 4 parts, taking you from theory to production:
 
 ### Option 1: Interactive Notebooks
 
-Click Colab badges in the chapter tables below to run examples in your browser. No installation required.
+Click Colab badges in the chapter tables above to run examples in your browser. No installation required.
 
 ### Option 2: GitHub Codespaces
 
@@ -204,12 +204,14 @@ examples/
 
 ## Key Features
 
-🎯 **Production Patterns**
+🎯 **Production-Ready Patterns**
 
-- Two-stage filtering: Reduce LLM costs by 90% (YC Analysis case study)
-- Structured outputs: Eliminate hallucination with Pydantic models
-- Checkpointing: Resumable workflows with state persistence
-- Think tool: Structured reasoning for 54% performance improvement
+Illustrated through real-world case studies (see [YC Analysis workflow](examples/workflows/yc_analysis/)):
+
+- Cost optimization: Two-stage filtering for 90% LLM cost reduction
+- Type safety: Structured outputs with Pydantic validation
+- Reliability: Checkpointing and resumable workflows
+- Advanced reasoning: Think tool for improved problem-solving (54% performance gain)
 
 🖥️ **Computer Use Agents**
 
@@ -237,8 +239,8 @@ examples/
 
 This repository implements every concept from the book. The book provides the theory, design trade-offs, and production considerations you need to build effective multi-agent systems.
 
-- Digital Edition - [Link](https://buy.multiagentbook.com)
-- Buy Print Edition on [Amazon - Coming Soon]()
+- [Buy Digital Edition](https://buy.multiagentbook.com)
+- Buy Print Edition on Amazon - Coming Soon
 
 ## Questions and Feedback
 

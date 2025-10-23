@@ -3,7 +3,7 @@
  * Features: Workflow step visualization, input forms, execution monitoring
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,8 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
-  FileCode
+  FileCode,
+  StopCircle
 } from "lucide-react";
 import { apiClient } from "@/services/api";
 import type {
@@ -44,6 +45,7 @@ export function WorkflowView({
   });
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleInputChange = (key: string, value: any) => {
     setInputData(prev => ({
@@ -61,6 +63,9 @@ export function WorkflowView({
       steps_completed: [],
     });
 
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
     try {
       const request: RunEntityRequest = {
         input_data: inputData,
@@ -68,7 +73,8 @@ export function WorkflowView({
 
       for await (const event of apiClient.streamEntityExecution(
         selectedWorkflow.id,
-        request
+        request,
+        abortControllerRef.current.signal
       )) {
         onDebugEvent(event);
 
@@ -105,16 +111,35 @@ export function WorkflowView({
       }
     } catch (err) {
       console.error("Workflow execution error:", err);
-      setError(err instanceof Error ? err.message : "Execution failed");
-      setExecutionState(prev => ({
-        ...prev,
-        status: "failed",
-        error: err instanceof Error ? err.message : "Unknown error",
-      }));
+
+      // Check if this was an abort (user clicked stop)
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Cancelled by user");
+        setExecutionState(prev => ({
+          ...prev,
+          status: "failed",
+          error: "Cancelled by user",
+        }));
+      } else {
+        setError(err instanceof Error ? err.message : "Execution failed");
+        setExecutionState(prev => ({
+          ...prev,
+          status: "failed",
+          error: err instanceof Error ? err.message : "Unknown error",
+        }));
+      }
     } finally {
       setIsExecuting(false);
+      abortControllerRef.current = null;
     }
   }, [selectedWorkflow.id, inputData, onDebugEvent]);
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      console.log("🛑 Stopping workflow execution");
+      abortControllerRef.current.abort();
+    }
+  }, []);
 
   const getStepStatus = (stepId: string) => {
     if (executionState.steps_completed.includes(stepId)) {
@@ -269,18 +294,30 @@ export function WorkflowView({
                   Run the workflow with the provided input
                 </p>
               </div>
-              <Button
-                onClick={handleExecute}
-                disabled={isExecuting}
-                className="gap-2"
-              >
-                {isExecuting ? (
-                  <Clock className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Play className="h-4 w-4" />
+              <div className="flex gap-2">
+                {isExecuting && (
+                  <Button
+                    variant="destructive"
+                    onClick={handleStop}
+                    className="gap-2"
+                  >
+                    <StopCircle className="h-4 w-4" />
+                    Stop
+                  </Button>
                 )}
-                {isExecuting ? "Executing..." : "Execute"}
-              </Button>
+                <Button
+                  onClick={handleExecute}
+                  disabled={isExecuting}
+                  className="gap-2"
+                >
+                  {isExecuting ? (
+                    <Clock className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {isExecuting ? "Executing..." : "Execute"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -75,7 +75,7 @@ class AgentAsTool(BaseTool):
         task = parameters.get(self.task_parameter_name, "")
 
         try:
-            response = await self.agent.run(task)
+            response = await self.agent.run(task=task, context=None, cancellation_token=None)
 
             # Extract final message content
             final_content = ""
@@ -124,7 +124,13 @@ class AgentAsTool(BaseTool):
 
         try:
             # Stream all agent output
-            async for item in self.agent.run_stream(task, cancellation_token):
+            async for item in self.agent.run_stream(
+                task=task,
+                context=None,
+                cancellation_token=cancellation_token,
+                verbose=False,
+                stream_tokens=False,
+            ):
                 if isinstance(item, AgentResponse):
                     final_response = item
                 else:

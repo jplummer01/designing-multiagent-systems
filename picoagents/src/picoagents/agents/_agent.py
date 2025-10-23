@@ -6,14 +6,17 @@ act through tools, maintain memory, and communicate with other agents.
 """
 
 import asyncio
+import os
 import time
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from .._cancellation_token import CancellationToken
 from .._component_config import Component, ComponentModel
+from ..context import AgentContext
 from ..messages import (
     AssistantMessage,
     Message,
@@ -73,9 +76,18 @@ class Agent(Component[AgentConfig], BaseAgent):
     component_type = "agent"
     component_provider_override = "picoagents.agents.Agent"
 
+    def _should_create_span(self) -> bool:
+        """Check if we should create OpenTelemetry spans."""
+        return os.getenv("PICOAGENTS_ENABLE_OTEL", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+
     async def run(
         self,
-        task: Union[str, UserMessage, List[Message]],
+        task: Optional[Union[str, UserMessage, List[Message]]] = None,
+        context: Optional[AgentContext] = None,
         cancellation_token: Optional[CancellationToken] = None,
     ) -> AgentResponse:
         """
@@ -85,17 +97,52 @@ class Agent(Component[AgentConfig], BaseAgent):
         as specified in stub.md.
 
         Args:
-            task: The task or query for the agent to address
+            task: Optional new task (can continue from context alone if not provided)
+            context: Existing context to continue from (created if not provided)
             cancellation_token: Optional token for cancelling execution
 
         Returns:
-            AgentResponse containing messages and usage statistics
+            AgentResponse containing context with all state and messages
         """
+        # Wrap execution in OpenTelemetry span if enabled
+        if self._should_create_span():
+            try:
+                from opentelemetry import trace
+
+                tracer = trace.get_tracer("picoagents")
+                with tracer.start_as_current_span(f"agent {self.name}"):
+                    return await self._run_internal(task, context, cancellation_token)
+            except Exception:
+                # If OTel fails, fall back to normal execution
+                return await self._run_internal(task, context, cancellation_token)
+        else:
+            return await self._run_internal(task, context, cancellation_token)
+
+    async def _run_internal(
+        self,
+        task: Optional[Union[str, UserMessage, List[Message]]] = None,
+        context: Optional[AgentContext] = None,
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> AgentResponse:
+        """Internal implementation of run() without span wrapping."""
+        # Use provided context or create new one
+        working_context = context if context else self.context.model_copy(deep=True)
+
+        # Add new task to context if provided
+        if task:
+            if isinstance(task, str):
+                working_context.add_message(UserMessage(content=task, source="user"))
+            elif isinstance(task, UserMessage):
+                working_context.add_message(task)
+            elif isinstance(task, list):
+                for msg in task:
+                    working_context.add_message(msg)
+
         final_response = None
         start_time = time.time()
 
         try:
-            async for item in self.run_stream(task, cancellation_token):
+            async for item in self.run_stream(None, working_context, cancellation_token, False, False):
                 # Capture the final AgentResponse
                 if isinstance(item, AgentResponse):
                     final_response = item
@@ -107,8 +154,8 @@ class Agent(Component[AgentConfig], BaseAgent):
                 # Fallback if no AgentResponse was yielded
                 duration_ms = int((time.time() - start_time) * 1000)
                 return AgentResponse(
+                    context=working_context,
                     source=self.name,
-                    messages=[],
                     finish_reason="no_response",
                     usage=Usage(duration_ms=duration_ms),
                 )
@@ -120,20 +167,22 @@ class Agent(Component[AgentConfig], BaseAgent):
             duration_ms = int((time.time() - start_time) * 1000)
             usage_stats = Usage(duration_ms=duration_ms)
 
-            # Return error response
+            # Return error response with context
             error_message = AssistantMessage(
                 content=f"Error: {str(e)}", source=self.name
             )
+            working_context.add_message(error_message)
             return AgentResponse(
+                context=working_context,
                 source=self.name,
-                messages=[error_message],
                 finish_reason="error",
                 usage=usage_stats,
             )
 
     async def run_stream(
         self,
-        task: Union[str, UserMessage, List[Message]],
+        task: Optional[Union[str, UserMessage, List[Message]]] = None,
+        context: Optional[AgentContext] = None,
         cancellation_token: Optional[CancellationToken] = None,
         verbose: bool = False,
         stream_tokens: bool = False,
@@ -163,39 +212,68 @@ class Agent(Component[AgentConfig], BaseAgent):
         tokens_input = 0
         tokens_output = 0
 
-        # Check if streaming should be disabled due to middleware
+        # Note: Token-level streaming (stream_tokens=True) bypasses middleware
+        # to enable real-time token streaming. Middleware is applied to complete
+        # messages in the non-streaming path. Agent-level streaming (run_stream)
+        # works with middleware via execute_stream().
+        # TODO: Consider adding middleware support for token streaming in future
         effective_stream_tokens = stream_tokens
-        if stream_tokens and len(self.middleware_chain.middlewares) > 0:
-            import warnings
 
-            warnings.warn(
-                "Token streaming disabled: middleware is configured. "
-                "Middleware requires complete requests/responses for processing. "
-                "To enable token streaming, remove middleware from the agent.",
-                UserWarning,
-                stacklevel=2,
-            )
-            effective_stream_tokens = False
+        # Use provided context or create one
+        working_context = context if context else self.context.model_copy(deep=True)
+
+        # Store the original context and use working_context for this run
+        original_context = self.context
+        self.context = working_context
 
         try:
             # Check for cancellation at the start
             if cancellation_token and cancellation_token.is_cancelled():
                 raise asyncio.CancelledError()
 
-            # 1. Convert task to message format
-            task_messages = self._convert_task_to_messages(task)
+            # 1. Add task to context if provided
+            if task:
+                task_messages = self._convert_task_to_messages(task)
+                for msg in task_messages:
+                    working_context.add_message(msg)
 
-            # Yield the initial user message
-            user_message = task_messages[0]
-            yield user_message
-            messages_yielded.append(user_message)
+                # Yield the initial user message
+                user_message = task_messages[0]
+                yield user_message
+                messages_yielded.append(user_message)
 
-            # Emit task start event
-            if verbose:
-                yield TaskStartEvent(source=self.name, task=user_message.content)
+                # Emit task start event
+                if verbose:
+                    yield TaskStartEvent(source=self.name, task=user_message.content)
+
+            # 1a. Check if resuming with pending tool calls that have approval responses
+            # This handles the case where agent paused for approval and is now resuming
+            if not task and working_context.messages:
+                last_message = working_context.messages[-1]
+                if isinstance(last_message, AssistantMessage) and last_message.tool_calls:
+                    # Check if any tool calls have approval responses
+                    has_approvals = any(
+                        working_context.approval_responses.get(tc.call_id) is not None
+                        for tc in last_message.tool_calls
+                    )
+
+                    if has_approvals:
+                        # Process the pending tool calls with their approval responses
+                        llm_messages_temp = await self._prepare_llm_messages(working_context.messages)
+
+                        # Process each tool call
+                        for tool_call in last_message.tool_calls:
+                            async for item in self._execute_tool_call(
+                                tool_call, llm_messages_temp, cancellation_token
+                            ):
+                                yield item
+                                if isinstance(
+                                    item, (UserMessage, AssistantMessage, ToolMessage)
+                                ):
+                                    messages_yielded.append(item)
 
             # 2. Prepare messages for LLM including system instructions, memory, history
-            llm_messages = await self._prepare_llm_messages(task_messages)
+            llm_messages = await self._prepare_llm_messages(working_context.messages)
 
             # 3. Make initial LLM call
             if verbose:
@@ -331,6 +409,8 @@ class Agent(Component[AgentConfig], BaseAgent):
 
                     else:
                         # NON-STREAMING PATH: Use middleware as before
+                        from ..types import ChatCompletionResult
+
                         async def _model_call(messages):
                             task = asyncio.create_task(
                                 self.model_client.create(
@@ -343,13 +423,37 @@ class Agent(Component[AgentConfig], BaseAgent):
                                 cancellation_token.link_future(task)
                             return await task
 
-                        completion_result = await self.middleware_chain.execute(
+                        # Prepare metadata with model information for middleware
+                        model_metadata = {}
+                        if hasattr(self.model_client, "model"):
+                            model_metadata["model"] = self.model_client.model
+
+                        # Execute through middleware chain (streaming)
+                        completion_result = None
+                        async for item in self.middleware_chain.execute_stream(
                             operation="model_call",
                             agent_name=self.name,
                             agent_context=self.context,
                             data=llm_messages,
                             func=_model_call,
-                        )
+                            metadata=model_metadata,
+                        ):
+                            # Check if this is an event (not the final result)
+                            # Result will be ChatCompletionResult
+                            if isinstance(item, ChatCompletionResult):
+                                completion_result = item
+                            else:
+                                # This is an event from middleware
+                                yield item
+
+                                # Check for approval pause
+                                if isinstance(item, ToolApprovalEvent):
+                                    return  # PAUSE - middleware requested approval
+
+                        if completion_result is None:
+                            # Middleware paused without yielding result
+                            return
+
                         original_message = completion_result.message
                         llm_finish_reason = (
                             completion_result.finish_reason
@@ -396,6 +500,9 @@ class Agent(Component[AgentConfig], BaseAgent):
 
                     # 4. Handle tool calls if present
                     if assistant_message.tool_calls:
+                        # Track if any tool needs approval
+                        approval_needed = False
+
                         # Check if we can execute tools in parallel (multiple independent calls)
                         if len(assistant_message.tool_calls) > 1:
                             # Execute tools in parallel using asyncio.gather
@@ -410,6 +517,10 @@ class Agent(Component[AgentConfig], BaseAgent):
                                     item, (UserMessage, AssistantMessage, ToolMessage)
                                 ):
                                     messages_yielded.append(item)
+                                # Check if this is an approval event
+                                from ..types import ToolApprovalEvent
+                                if isinstance(item, ToolApprovalEvent):
+                                    approval_needed = True
                         else:
                             # Single tool call - execute sequentially
                             for tool_call in assistant_message.tool_calls:
@@ -423,6 +534,16 @@ class Agent(Component[AgentConfig], BaseAgent):
                                         (UserMessage, AssistantMessage, ToolMessage),
                                     ):
                                         messages_yielded.append(item)
+                                    # Check if this is an approval event
+                                    from ..types import ToolApprovalEvent
+                                    if isinstance(item, ToolApprovalEvent):
+                                        approval_needed = True
+
+                        # If approval is needed, stop and return
+                        if approval_needed:
+                            # Set finish reason and break
+                            llm_finish_reason = "approval_needed"
+                            break
 
                         # Check if we should skip LLM summarization
                         if not self.summarize_tool_result:
@@ -474,9 +595,17 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
+            # Create context for response if we don't have one
+            if context:
+                response_context = context
+            else:
+                response_context = self.context.model_copy(deep=True)
+                for msg in messages_yielded:
+                    response_context.add_message(msg)
+
             final_response = AgentResponse(
+                context=response_context,
                 source=self.name,
-                messages=messages_yielded,
                 finish_reason=finish_reason,
                 usage=Usage(
                     duration_ms=duration_ms,
@@ -510,9 +639,17 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
+            # Create context for cancel response
+            if context:
+                cancel_context = context
+            else:
+                cancel_context = self.context.model_copy(deep=True)
+                for msg in messages_yielded:
+                    cancel_context.add_message(msg)
+
             cancel_response = AgentResponse(
+                context=cancel_context,
                 source=self.name,
-                messages=messages_yielded,
                 finish_reason="cancelled",
                 usage=Usage(
                     duration_ms=duration_ms,
@@ -549,9 +686,17 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
+            # Create context for error response
+            if context:
+                error_context = context
+            else:
+                error_context = self.context.model_copy(deep=True)
+                for msg in messages_yielded:
+                    error_context.add_message(msg)
+
             error_response = AgentResponse(
+                context=error_context,
                 source=self.name,
-                messages=messages_yielded,
                 finish_reason="error",
                 usage=Usage(
                     duration_ms=duration_ms,
@@ -562,6 +707,10 @@ class Agent(Component[AgentConfig], BaseAgent):
                 ),
             )
             yield error_response
+
+        finally:
+            # Restore the original context
+            self.context = original_context
 
     async def _execute_tool_calls_parallel(
         self,
@@ -690,6 +839,60 @@ class Agent(Component[AgentConfig], BaseAgent):
                 yield result
                 return
 
+            # Check if tool requires approval
+            from ..tools._base import ApprovalMode
+
+            if tool.approval_mode == ApprovalMode.ALWAYS:
+                # Check if we already have approval for this specific tool call
+                existing_approval = self.context.get_approval_response(tool_call.call_id)
+
+                if existing_approval is None:
+                    # No approval yet - create approval request and pause
+                    approval_request = self.context.add_approval_request(
+                        tool_call=tool_call,
+                        tool_name=tool_call.tool_name
+                    )
+
+                    # Emit approval needed event
+                    from ..types import ToolApprovalEvent
+                    approval_event = ToolApprovalEvent(
+                        source=self.name,
+                        approval_request=approval_request
+                    )
+                    yield approval_event
+
+                    # Do NOT execute the tool - just return without yielding a result
+                    # The agent will stop and wait for approval
+                    return
+
+                # We have approval - check if it was granted
+                if not existing_approval.approved:
+                    # User denied approval
+                    result = ToolMessage(
+                        content=f"Tool execution denied: {existing_approval.reason or 'User declined approval'}",
+                        source=self.name,
+                        tool_call_id=tool_call.call_id,
+                        tool_name=tool_call.tool_name,
+                        success=False,
+                        error="Approval denied"
+                    )
+
+                    # Emit denial event
+                    tool_response_event = ToolCallResponseEvent(
+                        source=self.name, call_id=tool_call.call_id, result=None
+                    )
+                    yield tool_response_event
+
+                    # Add result to context and messages
+                    self.context.add_message(result)
+                    llm_messages.append(result)
+
+                    # Yield the denial message
+                    yield result
+                    return
+
+                # Approval granted - proceed with execution below
+
             # Check if tool supports streaming
             if tool.supports_streaming():
                 # Execute streaming tool
@@ -731,19 +934,38 @@ class Agent(Component[AgentConfig], BaseAgent):
                 yield tool_response_event
             else:
                 # Traditional tool execution through middleware
+                from ..types import ToolResult
+
                 async def _tool_call(data):
                     task = asyncio.create_task(tool.execute(data.parameters))
                     if cancellation_token:
                         cancellation_token.link_future(task)
                     return await task
 
-                tool_result = await self.middleware_chain.execute(
+                # Execute through middleware chain (streaming)
+                tool_result = None
+                async for item in self.middleware_chain.execute_stream(
                     operation="tool_call",
                     agent_name=self.name,
                     agent_context=self.context,
                     data=tool_call,
                     func=_tool_call,
-                )
+                ):
+                    # Check if this is the final result (ToolResult)
+                    # Events will be various event types
+                    if isinstance(item, ToolResult):
+                        tool_result = item
+                    else:
+                        # This is an event from middleware
+                        yield item
+
+                        # Check for approval pause
+                        if isinstance(item, ToolApprovalEvent):
+                            return  # PAUSE - middleware requested approval
+
+                if tool_result is None:
+                    # Middleware paused without yielding result
+                    return
 
                 result = ToolMessage(
                     content=str(tool_result.result)

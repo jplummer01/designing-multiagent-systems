@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator
 from typing import List, Optional, Union
 
 from ..._cancellation_token import CancellationToken
+from ...context import AgentContext
 from ...llm import BaseChatCompletionClient
 from ...messages import (
     AssistantMessage,
@@ -123,14 +124,23 @@ Be decisive: if you can see the answer, provide it immediately!"""
 
     async def run_stream(
         self,
-        task: Union[str, UserMessage, List[Message]],
+        task: Optional[Union[str, UserMessage, List[Message]]] = None,
+        context: Optional[AgentContext] = None,
         cancellation_token: Optional[CancellationToken] = None,
         verbose: bool = False,
+        stream_tokens: bool = False,
     ) -> AsyncGenerator[Union[Message, AgentEvent, AgentResponse], None]:
         """
         Execute task with screenshot support.
 
         Inherits tool calling from base Agent and adds computer interface features.
+
+        Args:
+            task: The task or query for the agent to address
+            context: Optional context (passed to parent Agent.run_stream)
+            cancellation_token: Optional token for cancelling execution
+            verbose: Enable detailed event logging
+            stream_tokens: Enable token-level streaming from LLM
         """
         # Initialize interface
         if not self.is_initialized:
@@ -150,7 +160,13 @@ Be decisive: if you can see the answer, provide it immediately!"""
             )
 
         # Use base Agent's run_stream but intercept tool events for screenshots and task completion
-        async for item in super().run_stream(task, cancellation_token, verbose):
+        async for item in super().run_stream(
+            task=task,
+            context=context,
+            cancellation_token=cancellation_token,
+            verbose=verbose,
+            stream_tokens=stream_tokens,
+        ):
             yield item
 
             # Handle observe_page results - add screenshot to context if use_screenshots is enabled

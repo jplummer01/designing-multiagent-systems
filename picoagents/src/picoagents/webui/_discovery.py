@@ -482,6 +482,7 @@ class PicoAgentsScanner:
             if getattr(agent, "memory", None)
             else None
         )
+        example_tasks = getattr(agent, "example_tasks", [])
 
         return AgentInfo(
             **common_attrs,
@@ -489,6 +490,7 @@ class PicoAgentsScanner:
             tools=tools,
             model=model,
             memory_type=memory_type,
+            example_tasks=example_tasks,
         )
 
     def _create_orchestrator_info(
@@ -508,6 +510,7 @@ class PicoAgentsScanner:
         )
         agents = [agent.name for agent in getattr(orchestrator, "agents", [])]
         termination_conditions = self._extract_termination_conditions(orchestrator)
+        example_tasks = getattr(orchestrator, "example_tasks", [])
 
         return OrchestratorInfo(
             **common_attrs,
@@ -516,6 +519,7 @@ class PicoAgentsScanner:
             agents=agents,
             termination_conditions=termination_conditions,
             tools=[],  # Orchestrators don't have direct tools
+            example_tasks=example_tasks,
         )
 
     def _create_workflow_info(
@@ -553,6 +557,8 @@ class PicoAgentsScanner:
                         except Exception as e:
                             logger.debug(f"Could not extract input schema: {e}")
 
+        example_tasks = getattr(workflow, "example_tasks", [])
+
         return WorkflowInfo(
             **common_attrs,
             type="workflow",
@@ -560,6 +566,7 @@ class PicoAgentsScanner:
             start_step=start_step,
             input_schema=input_schema,
             tools=[],  # Workflows have steps, not direct tools
+            example_tasks=example_tasks,
         )
 
     def _extract_agent_tools(self, agent: Any) -> List[str]:

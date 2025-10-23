@@ -130,7 +130,8 @@ class ApiClient {
   // Entity execution - streaming
   async *streamEntityExecution(
     entityId: string,
-    request: RunEntityRequest
+    request: RunEntityRequest,
+    abortSignal?: AbortSignal
   ): AsyncGenerator<StreamEvent, void, unknown> {
     const endpoint = `/api/entities/${entityId}/run/stream`;
 
@@ -141,6 +142,7 @@ class ApiClient {
         Accept: "text/event-stream",
       },
       body: JSON.stringify(request),
+      signal: abortSignal, // Allow cancellation via AbortController
     });
 
     if (!response.ok) {

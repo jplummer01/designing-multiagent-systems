@@ -2,6 +2,7 @@
 examples/evaluation_results.csv
 examples/evaluation_results.png
 *.DS_Store
+OTEL_DESIGN.md
 
 # Python cache
 __pycache__/

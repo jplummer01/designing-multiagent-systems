@@ -6,11 +6,14 @@ for type safety and data validation.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from pydantic import BaseModel, Field
 
 from .messages import Message
+
+if TYPE_CHECKING:
+    from .context import AgentContext, ToolApprovalRequest
 
 
 class Usage(BaseModel):
@@ -62,25 +65,40 @@ class ToolResult(BaseModel):
 
 
 class AgentResponse(BaseModel):
-    """Final result from agent.run() containing complete interaction sequence."""
+    """Final result from agent.run() containing context with all state and messages."""
 
-    messages: Sequence[Message] = Field(
-        ..., description="Complete sequence of LLM interactions"
+    context: Optional["AgentContext"] = Field(
+        None, description="Complete context with messages and state"
     )
+    source: str = Field(..., description="Source agent that generated this response")
     usage: Usage = Field(
         ..., description="Execution statistics and resource consumption"
     )
-    source: str = Field(..., description="Source agent that generated this response")
     timestamp: datetime = Field(
         default_factory=datetime.now, description="When the message was created"
     )
     finish_reason: str = Field(
         ...,
-        description="Why the agent stopped: max_iterations, task_complete, error, cancelled",
+        description="Why the agent stopped: stop, approval_needed, max_iterations, error, cancelled",
     )
 
     class Config:
-        frozen = True
+        frozen = False  # Allow modification for context updates
+
+    @property
+    def messages(self) -> List[Message]:
+        """Backward compatibility - access messages through context."""
+        return self.context.messages if self.context else []
+
+    @property
+    def needs_approval(self) -> bool:
+        """Check if response is waiting for approvals."""
+        return self.context.waiting_for_approval if self.context else False
+
+    @property
+    def approval_requests(self) -> List["ToolApprovalRequest"]:
+        """Get pending approval requests."""
+        return self.context.pending_approval_requests if self.context else []
 
     @property
     def final_content(self) -> str:
@@ -115,11 +133,19 @@ class AgentResponse(BaseModel):
         )
 
         time_str = self.timestamp.strftime("%H:%M:%S")
-        return f"[{self.source}] {time_str} | duration: {duration_s:.1f}s, tokens: in:{tokens_in}, out:{tokens_out}{cost_str} | finish reason: ({self.finish_reason})"
+
+        # Add approval status if needed
+        if self.needs_approval:
+            approval_str = f" | ⚠️ {len(self.approval_requests)} approvals needed"
+        else:
+            approval_str = f" | finish: {self.finish_reason}"
+
+        return f"[{self.source}] {time_str} | duration: {duration_s:.1f}s, tokens: in:{tokens_in}, out:{tokens_out}{cost_str}{approval_str}"
 
     def __repr__(self) -> str:
         """Returns an unambiguous, developer-friendly representation."""
-        return f"AgentResponse(source='{self.source}', messages={len(self.messages)}, finish_reason='{self.finish_reason}', usage={self.usage})"
+        approval_info = f", approvals_needed={len(self.approval_requests)}" if self.needs_approval else ""
+        return f"AgentResponse(source='{self.source}', messages={len(self.messages)}, finish_reason='{self.finish_reason}', usage={self.usage}{approval_info})"
 
 
 class ChatCompletionResult(BaseModel):
@@ -272,6 +298,22 @@ class ToolCallResponseEvent(BaseEvent):
             return f"[{self.source}] {time_str} | tool_response: (no result)"
 
 
+class ToolApprovalEvent(BaseEvent):
+    """Event emitted when tool execution requires approval."""
+
+    event_type: str = Field(
+        default="tool_approval", description="Event type identifier"
+    )
+    approval_request: "ToolApprovalRequest" = Field(
+        ..., description="The approval request details"
+    )
+
+    def __str__(self) -> str:
+        """Returns a user-friendly string representation."""
+        time_str = self.timestamp.strftime("%H:%M:%S")
+        return f"[{self.source}] {time_str} | ⚠️ approval needed: {self.approval_request.tool_name}"
+
+
 class ToolValidationEvent(BaseEvent):
     """Event emitted after parameter validation."""
 
@@ -338,6 +380,7 @@ AgentEvent = Union[
     ModelStreamChunkEvent,
     ToolCallEvent,
     ToolCallResponseEvent,
+    ToolApprovalEvent,
     ToolValidationEvent,
     MemoryUpdateEvent,
     MemoryRetrievalEvent,
@@ -575,7 +618,9 @@ class EvalResult(BaseModel):
         frozen = True
 
 
-# Fix forward reference
+# Fix forward references
+from .context import AgentContext, ToolApprovalRequest
 from .messages import AssistantMessage
 
 ChatCompletionResult.model_rebuild()
+AgentResponse.model_rebuild()

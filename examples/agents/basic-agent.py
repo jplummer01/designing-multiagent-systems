@@ -33,6 +33,12 @@ agent = Agent(
     instructions="You are a helpful assistant with access to weather and calculation tools. Use them when appropriate.",
     model_client=OpenAIChatCompletionClient(model="gpt-4.1-mini"),
     tools=[get_weather, calculate],
+    example_tasks=[
+        "What's the weather in San Francisco?",
+        "Calculate 125 * 48",
+        "What's the weather in Tokyo and what's 15% of 240?",
+        "Is it sunny in London?",
+    ],
 )
 
 

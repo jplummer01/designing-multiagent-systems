@@ -21,6 +21,9 @@ class EntityInfo(BaseModel):
         default_factory=list, description="Available tools/functions"
     )
     has_env: bool = Field(False, description="Whether .env file exists")
+    example_tasks: List[str] = Field(
+        default_factory=list, description="Example tasks to help users discover capabilities"
+    )
 
 
 class AgentInfo(EntityInfo):

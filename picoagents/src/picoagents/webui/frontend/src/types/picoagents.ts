@@ -60,6 +60,23 @@ export interface ToolResult {
   metadata?: Record<string, any>;
 }
 
+// Tool Approval Types (aligned with Python context.py)
+export interface ToolApprovalRequest {
+  request_id: string;
+  tool_call_id: string;
+  tool_name: string;
+  parameters: Record<string, any>;
+  reason?: string;
+  original_tool_call: ToolCallRequest;
+}
+
+export interface ToolApprovalResponse {
+  request_id: string;
+  tool_call_id: string;
+  approved: boolean;
+  reason?: string;
+}
+
 // Usage Statistics
 export interface Usage {
   duration_ms: number;
@@ -94,6 +111,7 @@ export interface EntityInfo {
   module_path?: string;
   tools: string[];
   has_env: boolean;
+  example_tasks?: string[];
 }
 
 export interface AgentInfo extends EntityInfo {
@@ -140,7 +158,7 @@ export interface SessionContext {
 
 // Streaming Event Types
 export interface StreamEvent {
-  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "thinking" | "error" | "usage" | "complete" | "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error" | "task_start" | "task_complete" | "model_call" | "model_response" | "unknown";
+  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "tool_approval" | "thinking" | "error" | "usage" | "complete" | "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error" | "task_start" | "task_complete" | "model_call" | "model_response" | "unknown";
   data: any;
   session_id?: string;
   timestamp: string;
@@ -175,6 +193,7 @@ export interface RunEntityRequest {
   input_data?: any;      // For workflows
   session_id?: string;
   stream_tokens?: boolean; // Enable token-level streaming (default: true)
+  approval_responses?: ToolApprovalResponse[]; // Tool approval responses
 }
 
 // Health Check

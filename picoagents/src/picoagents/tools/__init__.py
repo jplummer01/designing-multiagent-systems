@@ -5,9 +5,17 @@ This module provides the foundation for tools that agents can use to
 interact with the world beyond text generation.
 """
 
-from ._base import BaseTool, FunctionTool
-from ._core_tools import create_core_tools
-from ._planning_tools import create_planning_tools
+from ._base import ApprovalMode, BaseTool, FunctionTool
+from ._core_tools import (
+    CalculatorTool,
+    DateTimeTool,
+    JSONParserTool,
+    RegexTool,
+    ThinkTool,
+    create_core_tools,
+)
+from ._decorator import tool
+from ._memory_tool import MemoryBackend, MemoryTool
 
 try:
     from ._research_tools import create_research_tools
@@ -19,11 +27,19 @@ except ImportError:
 from ._coding_tools import create_coding_tools
 
 __all__ = [
+    "ApprovalMode",
     "BaseTool",
     "FunctionTool",
+    "tool",
     "create_core_tools",
     "create_research_tools",
     "create_coding_tools",
-    "create_planning_tools",
+    "MemoryTool",
+    "MemoryBackend",
+    "ThinkTool",
+    "CalculatorTool",
+    "DateTimeTool",
+    "JSONParserTool",
+    "RegexTool",
     "RESEARCH_TOOLS_AVAILABLE",
 ]
