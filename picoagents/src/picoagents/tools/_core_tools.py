@@ -377,6 +377,116 @@ class RegexTool(BaseTool):
             )
 
 
+class TaskStatusTool(BaseTool):
+    """
+    Explicit task completion evaluation tool.
+
+    Forces agent to reflect on task status and provide structured rationale
+    for completion or stopping. Particularly useful for goal-directed agents
+    that need to assess when a task is complete vs needs human input.
+
+    Similar to ThinkTool, this is a meta-cognitive tool that helps agents
+    reason explicitly about their progress and completion criteria.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="task_status",
+            description=(
+                "Evaluate current task status with explicit rationale. "
+                "Use this to formally assess whether a task is complete or incomplete. "
+                "IMPORTANT: Call this before finishing a task. "
+                "Provide: (1) status ('complete' or 'incomplete'), "
+                "(2) detailed rationale explaining your assessment, "
+                "(3) optional: list of requirements met/pending."
+            ),
+        )
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["complete", "incomplete"],
+                    "description": (
+                        "'complete' if all task requirements are satisfied. "
+                        "'incomplete' if stopping due to blockers, limits, or need for input."
+                    ),
+                },
+                "rationale": {
+                    "type": "string",
+                    "description": (
+                        "Detailed explanation of your assessment. "
+                        "If COMPLETE: List each requirement and evidence it's satisfied. "
+                        "If INCOMPLETE: Explain the blocker, what was attempted, "
+                        "and why stopping now (e.g., hit retry limit, need user clarification)."
+                    ),
+                },
+                "requirements_met": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: List of requirements that have been satisfied.",
+                },
+                "requirements_pending": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional: List of requirements not yet satisfied (if incomplete).",
+                },
+            },
+            "required": ["status", "rationale"],
+        }
+
+    async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
+        """
+        Echo the status assessment.
+
+        The value is in forcing explicit reasoning about completion,
+        not in processing. This creates an observable record of why
+        the agent decided to stop.
+        """
+        status = parameters["status"]
+        rationale = parameters["rationale"]
+
+        result_lines = [
+            f"Task Status: {status.upper()}",
+            "",
+            "Rationale:",
+            rationale,
+        ]
+
+        if "requirements_met" in parameters:
+            result_lines.extend(
+                [
+                    "",
+                    "Requirements Met:",
+                    *[f"  ✓ {req}" for req in parameters["requirements_met"]],
+                ]
+            )
+
+        if "requirements_pending" in parameters:
+            result_lines.extend(
+                [
+                    "",
+                    "Requirements Pending:",
+                    *[f"  ⧗ {req}" for req in parameters["requirements_pending"]],
+                ]
+            )
+
+        return ToolResult(
+            success=True,
+            result="\n".join(result_lines),
+            error=None,
+            metadata={
+                "status": status,
+                "rationale": rationale,
+                "requirements_met": parameters.get("requirements_met", []),
+                "requirements_pending": parameters.get("requirements_pending", []),
+            },
+        )
+
+
 def create_core_tools() -> Sequence[BaseTool]:
     """
     Create a list of core utility tools.
@@ -386,6 +496,7 @@ def create_core_tools() -> Sequence[BaseTool]:
     """
     return [
         ThinkTool(),
+        TaskStatusTool(),
         CalculatorTool(),
         DateTimeTool(),
         JSONParserTool(),

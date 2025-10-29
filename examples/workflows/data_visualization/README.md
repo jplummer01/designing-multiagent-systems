@@ -100,33 +100,8 @@ Key configuration options in `VisualizationConfig`:
 - `execution_timeout`: Maximum code execution time
 - `force_refresh`: Skip cache and regenerate everything
 
-## Production Considerations
+## Files
 
-### Security
-- Use stronger sandboxing for production (containers, restricted Python)
-- Implement user quotas and rate limiting
-- Audit generated code before execution
-- Monitor resource usage
-
-### Scalability
-- Implement distributed execution for large datasets
-- Add queue-based processing for multiple users
-- Cache visualization templates for common patterns
-- Use async processing for I/O intensive operations
-
-### Monitoring
-- Track code generation success rates
-- Monitor execution failures and security violations
-- Measure end-to-end latency and cost
-- Alert on unusual patterns or errors
-
-## Integration with Book Chapter
-
-This implementation powers Chapter 13: "Building Automated Data Visualization Systems" and demonstrates:
-
-- Creative LLM applications with safety constraints
-- Production workflow patterns for code generation
-- Independent component testing strategies
-- Real-world security considerations for AI systems
-
-The workflow follows the same engineering principles as the data analysis chapter while addressing the unique challenges of safe code execution.
+- `workflow.py` - Main workflow orchestration
+- `test_workflow.py` - Unit tests for components
+- `viz_output/` - Generated charts and reports (created on run)

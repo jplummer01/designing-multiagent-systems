@@ -43,6 +43,7 @@ class MockAgent:
             ),
             source=self.name,
             finish_reason="completed",
+            context=Mock()
         )
 
     async def run_stream(self, messages, verbose: bool = False):

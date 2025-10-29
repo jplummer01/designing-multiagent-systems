@@ -17,6 +17,7 @@ Run:
 Then open: http://localhost:8000
 """
 
+import asyncio
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -26,7 +27,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from picoagents import Agent, OpenAIChatCompletionClient
+from picoagents import Agent, CancellationToken, OpenAIChatCompletionClient
 
 
 # ============================================================================
@@ -70,32 +71,49 @@ class ChatRequest(BaseModel):
     message: str
 
 
-async def stream_agent_events(message: str) -> AsyncGenerator[str, None]:
+async def stream_agent_events(
+    message: str, cancellation_token: CancellationToken
+) -> AsyncGenerator[str, None]:
     """
-    Stream agent execution events as Server-Sent Events.
+    Stream agent execution events as Server-Sent Events with cancellation support.
 
     This is the key bridge between agent execution and the UI.
     It converts agent events into SSE format that browsers can consume.
+    The cancellation_token allows graceful interruption of long-running tasks.
     """
-    # Stream events from the agent
-    async for event in weather_agent.run_stream(message, stream_tokens=True):
-        # Format as Server-Sent Event
-        # The "data: " prefix is required by the SSE protocol
-        yield f"data: {event.model_dump_json()}\n\n"
+    try:
+        # Stream events from the agent, passing the cancellation token
+        async for event in weather_agent.run_stream(
+            message, stream_tokens=True, cancellation_token=cancellation_token
+        ):
+            # Format as Server-Sent Event
+            # The "data: " prefix is required by the SSE protocol
+            yield f"data: {event.model_dump_json()}\n\n"
+
+    except (GeneratorExit, asyncio.CancelledError):
+        # Client disconnected (e.g., clicked Stop button)
+        # Trigger cancellation to stop agent execution and save resources
+        cancellation_token.cancel()
+        raise
 
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    Handle chat requests with streaming responses.
+    Handle chat requests with streaming responses and cancellation support.
 
     This endpoint demonstrates the communication bridge pattern:
     - Receives user input
     - Streams agent execution in real-time
     - Returns events as Server-Sent Events
+    - Supports graceful cancellation when client disconnects
     """
+    # Create a cancellation token for this request
+    # If the client disconnects, we'll use this to stop the agent
+    cancellation_token = CancellationToken()
+
     return StreamingResponse(
-        stream_agent_events(request.message),
+        stream_agent_events(request.message, cancellation_token),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

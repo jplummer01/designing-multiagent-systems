@@ -11,6 +11,7 @@ from ._core_tools import (
     DateTimeTool,
     JSONParserTool,
     RegexTool,
+    TaskStatusTool,
     ThinkTool,
     create_core_tools,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "MemoryTool",
     "MemoryBackend",
     "ThinkTool",
+    "TaskStatusTool",
     "CalculatorTool",
     "DateTimeTool",
     "JSONParserTool",

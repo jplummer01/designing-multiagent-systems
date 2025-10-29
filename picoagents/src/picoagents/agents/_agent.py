@@ -259,7 +259,8 @@ class Agent(Component[AgentConfig], BaseAgent):
 
                     if has_approvals:
                         # Process the pending tool calls with their approval responses
-                        llm_messages_temp = await self._prepare_llm_messages(working_context.messages)
+                        # Pass empty list since context messages are added inside _prepare_llm_messages
+                        llm_messages_temp = await self._prepare_llm_messages([])
 
                         # Process each tool call
                         for tool_call in last_message.tool_calls:
@@ -273,7 +274,8 @@ class Agent(Component[AgentConfig], BaseAgent):
                                     messages_yielded.append(item)
 
             # 2. Prepare messages for LLM including system instructions, memory, history
-            llm_messages = await self._prepare_llm_messages(working_context.messages)
+            # Pass empty list since context messages are added inside _prepare_llm_messages
+            llm_messages = await self._prepare_llm_messages([])
 
             # 3. Make initial LLM call
             if verbose:
@@ -595,13 +597,8 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
-            # Create context for response if we don't have one
-            if context:
-                response_context = context
-            else:
-                response_context = self.context.model_copy(deep=True)
-                for msg in messages_yielded:
-                    response_context.add_message(msg)
+            # Create context for response - use working_context which has all updates
+            response_context = working_context
 
             final_response = AgentResponse(
                 context=response_context,
@@ -639,13 +636,8 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
-            # Create context for cancel response
-            if context:
-                cancel_context = context
-            else:
-                cancel_context = self.context.model_copy(deep=True)
-                for msg in messages_yielded:
-                    cancel_context.add_message(msg)
+            # Create context for cancel response - use working_context which has all updates
+            cancel_context = working_context
 
             cancel_response = AgentResponse(
                 context=cancel_context,
@@ -686,13 +678,8 @@ class Agent(Component[AgentConfig], BaseAgent):
                 1 for msg in messages_yielded if isinstance(msg, ToolMessage)
             )
 
-            # Create context for error response
-            if context:
-                error_context = context
-            else:
-                error_context = self.context.model_copy(deep=True)
-                for msg in messages_yielded:
-                    error_context.add_message(msg)
+            # Create context for error response - use working_context which has all updates
+            error_context = working_context
 
             error_response = AgentResponse(
                 context=error_context,

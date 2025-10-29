@@ -109,6 +109,37 @@
         .typing-indicator.active {
             display: block;
         }
+
+        .preset-prompts {
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .preset-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #f3f4f6;
+            border-color: #2563eb;
+        }
+
+        .preset-prompts.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -118,7 +149,20 @@
             <p>Ask about the weather in any city!</p>
         </div>
 
-        <div class="messages" id="messages"></div>
+        <div class="messages" id="messages">
+            <div class="preset-prompts" id="presets">
+                <p style="color: #6b7280; margin-bottom: 12px; font-size: 14px;">Try these examples:</p>
+                <button class="preset-btn" onclick="usePreset('What is the weather like in Paris?')">
+                    What is the weather like in Paris?
+                </button>
+                <button class="preset-btn" onclick="usePreset('Tell me about the weather in Tokyo and New York')">
+                    Tell me about the weather in Tokyo and New York
+                </button>
+                <button class="preset-btn" onclick="usePreset('How is the weather in San Francisco today?')">
+                    How is the weather in San Francisco today?
+                </button>
+            </div>
+        </div>
 
         <div class="typing-indicator" id="typing">
             Agent is thinking...
@@ -129,9 +173,9 @@
                 type="text"
                 id="input"
                 placeholder="Ask about the weather..."
-                onkeypress="if(event.key==='Enter') sendMessage()"
+                onkeypress="if(event.key==='Enter' && sendBtn.textContent==='Send') sendMessage()"
             />
-            <button onclick="sendMessage()" id="sendBtn">Send</button>
+            <button id="sendBtn">Send</button>
         </div>
     </div>
 
@@ -144,9 +188,33 @@
         const inputEl = document.getElementById('input');
         const sendBtn = document.getElementById('sendBtn');
         const typingIndicator = document.getElementById('typing');
+        const presetsDiv = document.getElementById('presets');
 
-        // Current streaming message
+        // Current streaming message and abort controller
         let currentMessage = null;
+        let abortController = null;
+
+        // Hide presets after first message
+        function hidePresets() {
+            if (presetsDiv) {
+                presetsDiv.classList.add('hidden');
+            }
+        }
+
+        // Handle preset button clicks
+        function usePreset(message) {
+            inputEl.value = message;
+            sendMessage();
+        }
+
+        // Stop the current streaming request
+        function stopStreaming() {
+            if (abortController) {
+                console.log('🛑 Stopping agent execution');
+                abortController.abort();
+                abortController = null;
+            }
+        }
 
         function addMessage(content, type) {
             const msgDiv = document.createElement('div');
@@ -158,14 +226,27 @@
         }
 
         function setLoading(loading) {
-            sendBtn.disabled = loading;
             inputEl.disabled = loading;
             typingIndicator.className = loading ? 'typing-indicator active' : 'typing-indicator';
+
+            // Toggle between Send and Stop button
+            if (loading) {
+                sendBtn.textContent = 'Stop';
+                sendBtn.onclick = stopStreaming;
+                sendBtn.disabled = false;
+            } else {
+                sendBtn.textContent = 'Send';
+                sendBtn.onclick = sendMessage;
+                sendBtn.disabled = false;
+            }
         }
 
         async function sendMessage() {
             const message = inputEl.value.trim();
             if (!message) return;
+
+            // Hide preset prompts after first message
+            hidePresets();
 
             // Add user message to UI
             addMessage(message, 'user');
@@ -175,9 +256,12 @@
             // Create a message for streaming agent response
             currentMessage = addMessage('', 'assistant');
 
+            // Create AbortController for this request
+            abortController = new AbortController();
+
             try {
                 // ============================================================
-                // This is the key: Consuming Server-Sent Events
+                // This is the key: Consuming Server-Sent Events with cancellation
                 // ============================================================
 
                 const response = await fetch('http://localhost:8000/chat/stream', {
@@ -186,6 +270,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ message }),
+                    signal: abortController.signal, // Enable cancellation
                 });
 
                 // Read the SSE stream
@@ -238,16 +323,27 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                currentMessage.textContent = 'Error: Failed to get response';
-                currentMessage.className = 'message assistant error';
+
+                // Check if this was a user-initiated abort
+                if (error.name === 'AbortError') {
+                    currentMessage.textContent = '✋ Stopped by user';
+                    currentMessage.className = 'message thinking';
+                } else {
+                    currentMessage.textContent = 'Error: Failed to get response';
+                    currentMessage.className = 'message assistant error';
+                }
             } finally {
                 setLoading(false);
                 currentMessage = null;
+                abortController = null;
             }
         }
 
         // Auto-focus input on load
         inputEl.focus();
+
+        // Set initial button handler
+        sendBtn.onclick = sendMessage;
     </script>
 </body>
 </html>

@@ -27,42 +27,10 @@ from picoagents.tools import (
     ThinkTool,
     create_coding_tools,
 )
+from picoagents.types import AgentResponse
 
 
-async def main():
-    """Run software engineering agent on sample tasks."""
-
-    # Get API credentials
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-
-    if not api_key or not endpoint:
-        print("Error: Set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT")
-        return
-
-    # Initialize model client
-    client = AzureOpenAIChatCompletionClient(
-        model="gpt-4.1-mini",
-        api_key=api_key,
-        azure_endpoint=endpoint,
-        api_version="2024-10-21",
-    )
-
-    # Set up workspace directories
-    workspace = Path("./agent_workspace")
-    workspace.mkdir(exist_ok=True)
-
-    memory_path = Path("./agent_memory")
-    memory_path.mkdir(exist_ok=True)
-
-    # Initialize tools
-    memory_tool = MemoryTool(base_path=memory_path)
-
-    # Create agent with comprehensive instructions
-    agent = Agent(
-        name="software_engineer",
-        description="Expert software engineering agent that plans, codes, and learns from experience",
-        instructions="""
+system_instructions  ="""
 You are an expert software engineering agent. Follow this systematic workflow:
 
 ## PHASE 1: MEMORY CHECK (ALWAYS DO THIS FIRST)
@@ -162,8 +130,47 @@ NEVER finish without calling task_status. This documents WHY you're stopping.
 - If blocked after retries, call task_status with incomplete and explain
 
 Remember: Your memory persists across sessions. Build up knowledge!
-""",
+"""
+
+ # Get API credentials
+api_key = os.getenv("AZURE_OPENAI_API_KEY")
+endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+
+if not api_key or not endpoint:
+    print("Error: Set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT")  
+
+# Set up workspace directories
+workspace = Path("./scratch/agent_workspace")
+workspace.mkdir(parents=True, exist_ok=True)
+
+# Set up memory directory
+memory_path = Path("./scratch/agent_memory")
+memory_path.mkdir(parents=True, exist_ok=True)
+
+def get_agent() -> Agent :
+    """Create the software engineering agent.""" 
+   
+
+    # Initialize model client
+    client = AzureOpenAIChatCompletionClient(
+        model="gpt-4.1-mini",
+        api_key=api_key,
+        azure_endpoint=endpoint,
+        api_version="2024-10-21",
+    )
+
+    
+
+
+    # Initialize tools
+    memory_tool = MemoryTool(base_path=memory_path)
+
+    # Create agent with comprehensive instructions
+    agent = Agent(
+        name="software_engineer",
+        description="Expert software engineering agent that plans, codes, and learns from experience",
         model_client=client,
+        instructions=system_instructions,
         tools=[
             memory_tool,
             ThinkTool(),
@@ -172,6 +179,12 @@ Remember: Your memory persists across sessions. Build up knowledge!
         ],
         max_iterations=50,  # Allow longer execution for complex tasks
     )
+    return agent
+
+agent = get_agent()   
+
+async def main():
+    """Run software engineering agent on sample tasks."""
 
     print("=" * 70)
     print("SOFTWARE ENGINEERING AGENT - Example Run")
@@ -196,15 +209,13 @@ Run the tests to ensure everything works.
 
     print("\nTask:", task1.strip())
     print("\nAgent working...\n")
-
-    response1 = await agent.run(task1)
+ 
+    async for event in agent.run_stream(task1):
+        print(event)
 
     print("\n" + "-" * 70)
-    print("TASK 1 COMPLETE")
-    print(f"Final message: {response1.context.messages[-1].content if response1.context.messages else 'No messages'}")
-    print(f"Usage: {response1.usage}")
-    print("-" * 70)
-
+    print("TASK 1 COMPLETE") 
+    
     # Task 2: Enhance the module (tests agent's memory)
     print("\n" + "=" * 70)
     print("TASK 2: Add Power Function and Update Tests")
@@ -220,14 +231,16 @@ Note: Check if there are any patterns or decisions from the previous task that m
 
     print("\nTask:", task2.strip())
     print("\nAgent working...\n")
-
-    response2 = await agent.run(task2, context=response1.context)
+ 
+    context = None
+    async for event in agent.run_stream(task2):
+        print(event)
+        if isinstance(event, AgentResponse):
+            context = event.context
 
     print("\n" + "-" * 70)
     print("TASK 2 COMPLETE")
-    print(f"Final message: {response2.context.messages[-1].content if response2.context.messages else 'No messages'}")
-    print(f"Usage: {response2.usage}")
-    print("-" * 70)
+    
 
     # Task 3: Code review and documentation
     print("\n" + "=" * 70)
@@ -246,12 +259,14 @@ Check your memory for any documentation patterns or conventions.
     print("\nTask:", task3.strip())
     print("\nAgent working...\n")
 
-    response3 = await agent.run(task3, context=response2.context)
+    async for event in agent.run_stream(task3, context=context):
+        print(event)
+        if isinstance(event, AgentResponse):
+            context = event.context
+     
 
     print("\n" + "-" * 70)
-    print("TASK 3 COMPLETE")
-    print(f"Final message: {response3.context.messages[-1].content if response3.context.messages else 'No messages'}")
-    print(f"Usage: {response3.usage}")
+    print("TASK 3 COMPLETE") 
     print("-" * 70)
 
     # Summary
