@@ -1,10 +1,12 @@
 """
-Example: Using MemoryTool for cross-conversation learning.
+Example: Agent-managed memory using MemoryTool for cross-session learning.
 
-Demonstrates how agents can store and retrieve information across sessions,
-similar to Anthropic's memory tool functionality.
+Demonstrates how agents explicitly control their own persistent knowledge
+through file operations—storing patterns, organizing information, and
+retrieving learned insights across conversation sessions.
 
-Modelled around ideas from Anthropic's Memory Tool:
+Memory tools utilize ideas from Anthropic's context management work:
+https://www.anthropic.com/news/context-management
 """
 
 import asyncio

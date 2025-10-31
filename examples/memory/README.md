@@ -1,13 +1,24 @@
-# Memory Tool Examples
+# Memory Examples
 
-This directory contains examples demonstrating PicoAgents' MemoryTool for cross-conversation learning.
+This directory demonstrates two distinct approaches to agent memory in PicoAgents: **agent-managed memory** (agents actively control their knowledge base) and **application-managed memory** (developers control storage, framework injects context).
 
-## Files
+## Agent-Managed Memory (MemoryTool)
 
-- **`memory_tool_example.py`** - Complete examples showing:
-  - Code review with cross-session learning
-  - All memory operations (view, create, edit, delete, rename)
-  - Memory organization patterns
+**File:** [`memory_tool_example.py`](memory_tool_example.py)
+
+Agents explicitly read, write, and organize persistent knowledge through file operations. The agent decides when to check memory, what to store, and how to organize information—enabling cross-session learning where patterns discovered in one conversation can be applied in future sessions.
+
+Memory tools utilize ideas from [Anthropic's context management work](https://www.anthropic.com/news/context-management), particularly their file-based memory system.
+
+**Book reference:** Chapter 4, Section 4.10 "Agent-Managed Memory"
+
+## Application-Managed Memory (ListMemory)
+
+**File:** [`list_memory_example.py`](list_memory_example.py)
+
+Developers call `memory.add()` to store information (user preferences, facts, conversation summaries), and the framework automatically retrieves and injects relevant context into prompts via `memory.get_context()`. The agent receives this context but does not control storage or retrieval.
+
+**Book reference:** Chapter 4, Section 4.9 "Adding Memory"
 
 ## Running the Examples
 
@@ -15,68 +26,16 @@ This directory contains examples demonstrating PicoAgents' MemoryTool for cross-
 # Navigate to examples directory
 cd /path/to/designing-multiagent-systems/examples/memory
 
-# Run all demos
+# Run agent-managed memory example
 python memory_tool_example.py
+
+# Run application-managed memory example
+python list_memory_example.py
 ```
 
-## Requirements
-
-Ensure you have your API key configured:
-
-```bash
-# Set environment variable
-export OPENAI_API_KEY="your-key-here"
-
-# Or create .env file in project root
-echo "OPENAI_API_KEY=your-key-here" > ../../.env
-```
-
-## What You'll See
-
-### Demo 1: Code Review with Cross-Session Learning
-
-- **Session 1**: Agent reviews code with a race condition, stores the pattern in memory
-- **Session 2**: Agent reviews similar async code, applies the learned pattern immediately
-
-### Demo 2: Memory Operations
-
-Demonstrates all 6 memory operations:
-- `view` - Show directory or file contents
-- `create` - Create new files
-- `str_replace` - Edit file contents
-- `insert` - Insert text at specific line
-- `delete` - Remove files
-- `rename` - Rename or move files
-
-### Demo 3: Memory Organization
-
-Shows how to organize memory into directories:
-```
-/memories/
-  ├── patterns/     # Code patterns
-  ├── bugs/         # Known bugs
-  ├── projects/     # Project notes
-  └── users/        # User preferences
-```
-
-## Key Concepts Demonstrated
-
-1. **Cross-Session Learning**: Memory persists between agent conversations
-2. **Agent Autonomy**: Agents actively manage their own knowledge
-3. **File Organization**: Structured memory with directories
-4. **Pattern Recognition**: Applying learned patterns to new problems
+Both examples require `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` environment variables.
 
 ## Related Documentation
 
-- [Memory Tool Documentation](../../picoagents/docs/memory_tool.md)
-- [PicoAgents README](../../picoagents/README.md)
-- [Book Chapter on Memory](../../../../chapters/) (coming soon)
-
-## Comparison with Anthropic
-
-This implementation mirrors Anthropic's memory tool:
-- Same 6 operations
-- Same file-based approach
-- Same agent-driven memory management
-
-See [Memory Comparison](../../../../misc/memory_comparison_summary.md) for detailed comparison.
+- [PicoAgents Memory Documentation](../../picoagents/docs/memory.md)
+- [Book Chapter 4: Building Your First Agent](../../../../chapters/ch04-building-first-agent.qmd)
