@@ -19,13 +19,37 @@ from ._decorator import tool
 from ._memory_tool import MemoryBackend, MemoryTool
 
 try:
-    from ._research_tools import create_research_tools
+    from ._research_tools import YouTubeCaptionTool, create_research_tools
 
     RESEARCH_TOOLS_AVAILABLE = True
 except ImportError:
     RESEARCH_TOOLS_AVAILABLE = False
+    YouTubeCaptionTool = None  # type: ignore
 
 from ._coding_tools import create_coding_tools
+
+# MCP support (optional dependency)
+try:
+    from ._mcp import (
+        HTTPServerConfig,
+        MCPClientManager,
+        MCPServerConfig,
+        MCPTool,
+        StdioServerConfig,
+        TransportType,
+        create_mcp_tools,
+    )
+
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    MCPTool = None  # type: ignore
+    MCPClientManager = None  # type: ignore
+    MCPServerConfig = None  # type: ignore
+    StdioServerConfig = None  # type: ignore
+    HTTPServerConfig = None  # type: ignore
+    TransportType = None  # type: ignore
+    create_mcp_tools = None  # type: ignore
 
 __all__ = [
     "ApprovalMode",
@@ -43,5 +67,15 @@ __all__ = [
     "DateTimeTool",
     "JSONParserTool",
     "RegexTool",
+    "YouTubeCaptionTool",
     "RESEARCH_TOOLS_AVAILABLE",
+    # MCP integration
+    "MCPTool",
+    "MCPClientManager",
+    "MCPServerConfig",
+    "StdioServerConfig",
+    "HTTPServerConfig",
+    "TransportType",
+    "create_mcp_tools",
+    "MCP_AVAILABLE",
 ]

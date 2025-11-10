@@ -17,6 +17,10 @@ import {
   Info,
   ChevronDown,
   ChevronRight,
+  Users,
+  UserPlus,
+  Play,
+  Pause,
 } from "lucide-react";
 import type { StreamEvent } from "@/types";
 
@@ -42,6 +46,17 @@ const getEventIcon = (eventType: string) => {
     case "workflow_started":
     case "workflow_completed":
       return <Activity className="h-4 w-4 text-blue-500" />;
+    // Orchestration events
+    case "orchestration_start":
+      return <Users className="h-4 w-4 text-purple-500" />;
+    case "orchestration_complete":
+      return <CheckCircle className="h-4 w-4 text-purple-500" />;
+    case "agent_selection":
+      return <UserPlus className="h-4 w-4 text-blue-500" />;
+    case "agent_execution_start":
+      return <Play className="h-4 w-4 text-blue-400" />;
+    case "agent_execution_complete":
+      return <Pause className="h-4 w-4 text-blue-400" />;
     default:
       return <Info className="h-4 w-4" />;
   }
@@ -55,18 +70,51 @@ const getEventBadgeVariant = (eventType: string) => {
       return "default" as const;
     case "complete":
     case "workflow_completed":
+    case "orchestration_complete":
+    case "agent_execution_complete":
       return "default" as const;
     case "message":
     case "token_chunk":
     case "tool_call":
       return "secondary" as const;
+    case "orchestration_start":
+    case "agent_selection":
+    case "agent_execution_start":
+      return "outline" as const;
     default:
       return "outline" as const;
   }
 };
 
+// Helper to format orchestration event details
+const getOrchestrationEventDetail = (event: StreamEvent): string | null => {
+  const data = event.data as any;
+
+  switch (event.type) {
+    case "orchestration_start":
+      return data?.pattern ? `Pattern: ${data.pattern}` : null;
+    case "agent_selection":
+      return data?.selected_agent
+        ? `Selected: ${data.selected_agent}${data.selection_reason ? ` (${data.selection_reason})` : ''}`
+        : null;
+    case "agent_execution_start":
+      return data?.executing_agent
+        ? `${data.executing_agent}${data.context_size ? ` - ${data.context_size} messages` : ''}`
+        : null;
+    case "agent_execution_complete":
+      return data?.executing_agent
+        ? `${data.executing_agent}${data.message_count ? ` - added ${data.message_count} messages` : ''}`
+        : null;
+    case "orchestration_complete":
+      return data?.stop_reason ? `Reason: ${data.stop_reason}` : null;
+    default:
+      return null;
+  }
+};
+
 function EventItem({ event }: { event: StreamEvent }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const orchestrationDetail = getOrchestrationEventDetail(event);
 
   return (
     <div className="bg-card border border-muted rounded p-2 shadow-sm">
@@ -83,6 +131,13 @@ function EventItem({ event }: { event: StreamEvent }) {
           {new Date(event.timestamp).toLocaleTimeString()}
         </div>
       </div>
+
+      {/* Show orchestration event detail prominently */}
+      {orchestrationDetail && (
+        <div className="text-xs text-foreground font-medium mt-1">
+          {orchestrationDetail}
+        </div>
+      )}
 
       {event.data && (
         <div className="mt-1">

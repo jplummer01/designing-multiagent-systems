@@ -11,7 +11,7 @@ from ..._cancellation_token import CancellationToken
 from ...llm import BaseChatCompletionClient
 from ...messages import SystemMessage, UserMessage
 from ...types import EvalScore, EvalTrajectory
-from .._base import BaseEvalJudge
+from ._base import BaseEvalJudge
 
 
 class LLMEvalJudge(BaseEvalJudge):
@@ -23,6 +23,7 @@ class LLMEvalJudge(BaseEvalJudge):
         name: Optional[str] = None,
         default_criteria: Optional[List[str]] = None,
         answer_strategy: str = "last_non_empty",
+        custom_instructions: Optional[str] = None,
     ):
         """Initialize the LLM judge.
 
@@ -32,6 +33,9 @@ class LLMEvalJudge(BaseEvalJudge):
             default_criteria: Default evaluation criteria if none specified
             answer_strategy: How to extract answer from trajectory
                 Note: LLM judges often benefit from seeing full context
+            custom_instructions: Optional additional instructions to append to the system prompt
+                Use this to add domain-specific guidance, adjust for multi-agent evaluation,
+                or specify format flexibility requirements
         """
         super().__init__(
             name or f"LLM-{getattr(client, 'model', 'Judge')}", answer_strategy
@@ -42,6 +46,7 @@ class LLMEvalJudge(BaseEvalJudge):
             "completeness",
             "helpfulness",
         ]
+        self.custom_instructions = custom_instructions
 
     async def score(
         self,
@@ -124,7 +129,7 @@ class LLMEvalJudge(BaseEvalJudge):
             )
             criteria_details.append(f"- {criterion}: {description}")
 
-        return f"""You are an expert evaluation judge. Your task is to score AI agent conversations based on specific criteria.
+        base_prompt = f"""You are an expert evaluation judge. Your task is to score AI agent conversations based on specific criteria.
 
 Evaluation Criteria (each scored 0-10):
 {chr(10).join(criteria_details)}
@@ -134,7 +139,13 @@ Instructions:
 2. Consider both the final outcome AND the process (reasoning, communication, error handling)
 3. Score each criterion from 0-10 (0=poor, 5=average, 10=excellent)
 4. Calculate overall score as average of dimensional scores
-5. Provide brief reasoning for each score
+5. Provide brief reasoning for each score"""
+
+        # Append custom instructions if provided
+        if self.custom_instructions:
+            base_prompt += f"\n\nAdditional Evaluation Guidance:\n{self.custom_instructions}"
+
+        base_prompt += f"""
 
 Respond with this EXACT JSON format:
 {{
@@ -148,6 +159,8 @@ Respond with this EXACT JSON format:
     {', '.join(f'"{c}": "<brief_reason>"' for c in criteria[1:]) if len(criteria) > 1 else ''}
   }}
 }}"""
+
+        return base_prompt
 
     def _build_user_prompt(self, trajectory: EvalTrajectory) -> str:
         """Build the user prompt containing the trajectory to evaluate."""

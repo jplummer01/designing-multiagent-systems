@@ -309,6 +309,7 @@ class Agent(Component[AgentConfig], BaseAgent):
                             None  # Track last seen call_id for chunks without ID
                         )
                         structured_output = None
+                        streaming_usage = None  # Track usage from final chunk
 
                         async for chunk in self.model_client.create_stream(
                             llm_messages, tools=tools, output_format=self.output_format
@@ -345,7 +346,9 @@ class Agent(Component[AgentConfig], BaseAgent):
                                             ),
                                         }
                             else:
-                                # Stream complete
+                                # Stream complete - capture usage from final chunk
+                                if chunk.usage:
+                                    streaming_usage = chunk.usage
                                 llm_finish_reason = (
                                     "stop"  # Streaming typically ends with "stop"
                                 )
@@ -394,12 +397,10 @@ class Agent(Component[AgentConfig], BaseAgent):
                         completion_result = ChatCompletionResult(
                             message=accumulated_message,
                             usage=Usage(
-                                duration_ms=0,  # Would need to track this in streaming
+                                duration_ms=streaming_usage.duration_ms if streaming_usage else 0,
                                 llm_calls=1,
-                                tokens_input=0,  # Would need to track this from streaming
-                                tokens_output=len(accumulated_content.split())
-                                if accumulated_content
-                                else 0,
+                                tokens_input=streaming_usage.tokens_input if streaming_usage else 0,
+                                tokens_output=streaming_usage.tokens_output if streaming_usage else 0,
                                 tool_calls=len(tool_calls),
                             ),
                             model=getattr(self.model_client, "model", "unknown"),
@@ -469,6 +470,7 @@ class Agent(Component[AgentConfig], BaseAgent):
                         structured_content=completion_result.structured_output
                         if completion_result.structured_output
                         else None,
+                        usage=completion_result.usage if hasattr(completion_result, "usage") else None,
                     )
 
                     llm_calls += 1

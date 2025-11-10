@@ -234,6 +234,7 @@ class OpenAIChatCompletionClient(
         messages: List[Message],
         tools: Optional[List[Dict[str, Any]]] = None,
         output_format: Optional[Type[BaseModel]] = None,
+        stream_options: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> AsyncGenerator[ChatCompletionChunk, None]:
         """
@@ -243,10 +244,11 @@ class OpenAIChatCompletionClient(
             messages: List of messages to send
             tools: Optional function definitions for tool calling
             output_format: Optional Pydantic model for structured output (Note: streaming structured output not fully supported yet)
+            stream_options: Stream options (defaults to {"include_usage": True} to enable token tracking)
             **kwargs: Additional OpenAI parameters
 
         Yields:
-            ChatCompletionChunk objects with incremental response data
+            ChatCompletionChunk objects with incremental response data (final chunk includes usage if stream_options.include_usage=true)
         """
         try:
             # Note: Streaming structured output is not fully implemented yet
@@ -266,6 +268,12 @@ class OpenAIChatCompletionClient(
                 **kwargs,
             }
 
+            # Add stream options - default to including usage for token tracking
+            if stream_options is None:
+                stream_options = {"include_usage": True}
+            if stream_options:
+                request_params["stream_options"] = stream_options
+
             # Add tools if provided
             if tools:
                 request_params["tools"] = tools
@@ -278,6 +286,27 @@ class OpenAIChatCompletionClient(
             tool_call_chunks = {}
 
             async for chunk in stream:
+                # Handle usage-only chunk (comes AFTER finish_reason, has empty choices array)
+                if hasattr(chunk, "usage") and chunk.usage and (not chunk.choices or len(chunk.choices) == 0):
+                    # This is the final usage-only chunk
+                    usage_data = Usage(
+                        duration_ms=0,  # Duration tracked at agent level
+                        llm_calls=1,
+                        tokens_input=chunk.usage.prompt_tokens,
+                        tokens_output=chunk.usage.completion_tokens,
+                        tool_calls=0,  # Tool calls tracked at agent level
+                    )
+                    yield ChatCompletionChunk(
+                        content="",
+                        is_complete=True,
+                        tool_call_chunk=None,
+                        usage=usage_data,
+                    )
+                    break
+
+                if not chunk.choices:
+                    continue
+
                 chunk_choice: ChunkChoice = chunk.choices[0]
                 delta = chunk_choice.delta
 
@@ -327,12 +356,11 @@ class OpenAIChatCompletionClient(
                             tool_call_chunk=tool_call_chunks[tracking_key],
                         )
 
-                # Check if stream is complete
+                # Check if stream is complete (has finish_reason)
+                # NOTE: Usage will come in a SEPARATE chunk after this one
                 if chunk_choice.finish_reason:
-                    yield ChatCompletionChunk(
-                        content="", is_complete=True, tool_call_chunk=None
-                    )
-                    break
+                    # Don't yield completion yet - wait for usage chunk
+                    continue
 
         except OpenAIAuthError as e:
             raise AuthenticationError(f"OpenAI authentication failed: {str(e)}")

@@ -74,7 +74,7 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
         self.description = description
         self.instructions = instructions
         self.model_client = model_client
-        self.tools = self._process_tools(tools or [])
+        self.tools: List[BaseTool] = self._process_tools(tools or [])
         self.memory = memory
         self.context = context or AgentContext()
         self.middleware_chain = MiddlewareChain(middlewares)

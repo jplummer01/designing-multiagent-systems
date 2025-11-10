@@ -103,6 +103,20 @@ class ApiClient {
     return this.request<SessionInfo[]>(`/api/sessions${params}`);
   }
 
+  /**
+   * Get or create a session for an entity.
+   * Fetches existing sessions, returns most recent if found, creates new if none exist.
+   */
+  async getOrCreateSession(entityId: string, entityType: string = "agent"): Promise<SessionInfo> {
+    const sessions = await this.getSessions(entityId);
+    if (sessions.length > 0) {
+      // Return most recent session (already sorted by last_activity)
+      return sessions[0];
+    }
+    // No sessions exist - create one
+    return this.createSession(entityId, entityType);
+  }
+
   async createSession(entityId: string, entityType: string = "agent"): Promise<SessionInfo> {
     return this.request<SessionInfo>("/api/sessions", {
       method: "POST",

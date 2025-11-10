@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
 Simple round-robin orchestration example.
+
+Run in CLI mode (default):
+    python examples/orchestration/round-robin.py
+
+Run with Web UI:
+    python examples/orchestration/round-robin.py --web
 """
 
+import argparse
 import asyncio
-
-from httpx import get
 
 from picoagents import Agent
 from picoagents.llm import OpenAIChatCompletionClient
@@ -61,4 +66,36 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(
+        description="Round-robin orchestration example with poet and critic agents"
+    )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Launch Web UI instead of CLI mode",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8070,
+        help="Port for Web UI (default: 8070)",
+    )
+    args = parser.parse_args()
+
+    if args.web:
+        # Import WebUI only if needed
+        from picoagents.webui import serve
+
+        print("🚀 Starting PicoAgents WebUI with round-robin orchestrator...")
+        print(f"\n📋 Poet & Critic Collaboration")
+        print(f"  • Port: {args.port}")
+        print(f"  • Try: 'Write a haiku about cherry blossoms in spring'\n")
+
+        serve(
+            entities=[orchestrator],
+            port=args.port,
+            auto_open=True,
+        )
+    else:
+        # Run in CLI mode
+        asyncio.run(main())

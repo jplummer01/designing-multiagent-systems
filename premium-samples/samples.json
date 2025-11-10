@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "updated": "2025-11-10",
+  "samples": [
+    {
+      "id": "yc-analysis-app",
+      "title": "YC Analysis App",
+      "description": "Production-ready application that analyzes 5,622 Y Combinator companies to identify AI agent trends. Features a 4-stage workflow with 90% cost optimization, real-time streaming progress, and an interactive dashboard for exploring results.",
+      "tier": "professional",
+      "status": "available",
+      "tags": ["workflows", "fastapi", "react", "sse", "production", "cost-optimization"],
+      "difficulty": "intermediate",
+      "chapters": [5, 6, 13],
+      "github_url": "https://github.com/victordibia/designing-multiagent-systems/tree/main/premium-samples/yc-analysis-app",
+      "screenshot": "yc-analysis-app/screenshot.jpg",
+      "tech_stack": {
+        "backend": ["Python 3.11+", "FastAPI", "PicoAgents", "Server-Sent Events"],
+        "frontend": ["React 19", "TypeScript", "Vite", "Tailwind CSS v4", "shadcn/ui"],
+        "deployment": ["Docker", "Docker Compose"]
+      },
+      "features": [
+        "4-stage workflow: Load → Filter → Classify → Analyze",
+        "90% cost reduction through two-stage filtering",
+        "Real-time streaming with Server-Sent Events",
+        "Interactive results dashboard with metrics visualization",
+        "Historical runs gallery and comparison",
+        "Checkpointing and resume capability",
+        "Docker deployment with unified container"
+      ],
+      "key_concepts": [
+        "Multi-stage workflow orchestration",
+        "Cost optimization strategies",
+        "SSE streaming for real-time updates",
+        "Event-driven architecture",
+        "Production deployment patterns"
+      ],
+      "use_cases": [
+        "Analyzing large datasets with AI",
+        "Market research and trend identification",
+        "Business intelligence from unstructured data",
+        "Cost-effective batch processing"
+      ],
+      "estimated_cost": {
+        "100_companies": "$0.30",
+        "500_companies": "$1.50",
+        "full_dataset": "$15.00"
+      },
+      "size_mb": 0.13,
+      "setup_time_minutes": 5,
+      "demo_video_url": null,
+      "docs_url": "https://github.com/victordibia/designing-multiagent-systems/blob/main/premium-samples/yc-analysis-app/README.md"
+    }
+  ]
+}

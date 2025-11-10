@@ -19,12 +19,12 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       className="fixed inset-0 z-50 flex items-center justify-center"
       onClick={() => onOpenChange(false)}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" />
+      {/* Backdrop - increased opacity for better distinction */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-      {/* Dialog Content */}
+      {/* Dialog Content - enhanced shadow and border with card background for better contrast */}
       <div
-        className="relative z-10 bg-background rounded-lg shadow-lg max-h-[90vh] overflow-hidden"
+        className="relative z-10 bg-card rounded-lg shadow-2xl border-2 border-border max-h-[90vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -35,20 +35,22 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
 
 interface DialogContentProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function DialogContent({ children }: DialogContentProps) {
-  return <div className="overflow-auto max-h-[90vh]">{children}</div>;
+export function DialogContent({ children, className }: DialogContentProps) {
+  return <div className={className || "overflow-auto max-h-[90vh]"}>{children}</div>;
 }
 
 interface DialogHeaderProps {
   children: React.ReactNode;
   onClose?: () => void;
+  className?: string;
 }
 
-export function DialogHeader({ children, onClose }: DialogHeaderProps) {
+export function DialogHeader({ children, onClose, className }: DialogHeaderProps) {
   return (
-    <div className="sticky top-0 bg-background border-b px-6 py-4 flex items-center justify-between z-10">
+    <div className={className || "sticky top-0 bg-background border-b px-6 py-4 flex items-center justify-between z-10"}>
       {children}
       {onClose && (
         <Button variant="ghost" size="sm" onClick={onClose}>
@@ -61,8 +63,9 @@ export function DialogHeader({ children, onClose }: DialogHeaderProps) {
 
 interface DialogTitleProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function DialogTitle({ children }: DialogTitleProps) {
-  return <h2 className="text-lg font-semibold">{children}</h2>;
+export function DialogTitle({ children, className }: DialogTitleProps) {
+  return <h2 className={className || "text-lg font-semibold"}>{children}</h2>;
 }

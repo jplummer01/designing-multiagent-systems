@@ -92,10 +92,35 @@ class CompositeJudge(BaseEvalJudge):
             score.overall * weight for score, (_, weight) in zip(scores, self.judges)
         )
 
-        dimensions: Dict[str, float] = {}
+        # Collect dimensions from all judges, tracking which judges provide each dimension
+        dimension_contributions: Dict[str, List[Tuple[float, float]]] = (
+            {}
+        )  # dim -> [(value, weight), ...]
+
         for score, (_, weight) in zip(scores, self.judges):
             for dim, val in score.dimensions.items():
-                dimensions[dim] = dimensions.get(dim, 0.0) + (val * weight)
+                if dim not in dimension_contributions:
+                    dimension_contributions[dim] = []
+                dimension_contributions[dim].append((val, weight))
+
+        # Calculate final dimension scores by normalizing weights for each dimension
+        # This ensures dimensions reported by different subsets of judges are fairly combined
+        dimensions: Dict[str, float] = {}
+        for dim, contributions in dimension_contributions.items():
+            # Sum of weights for judges that provided this dimension
+            total_weight_for_dim = sum(weight for _, weight in contributions)
+
+            if total_weight_for_dim > 0:
+                # Weighted average, normalized by the sum of weights that contributed
+                dimensions[dim] = sum(
+                    val * (weight / total_weight_for_dim)
+                    for val, weight in contributions
+                )
+            else:
+                # Fallback (should not happen if weights are positive)
+                dimensions[dim] = sum(val for val, _ in contributions) / len(
+                    contributions
+                )
 
         reasoning: Dict[str, str] = {}
         for score, (judge, weight) in zip(scores, self.judges):

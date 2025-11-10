@@ -21,6 +21,7 @@ from ._models import (
     StepCompletedEvent,
     StepExecution,
     StepFailedEvent,
+    StepProgressEvent,
     StepStartedEvent,
     StepStatus,
     WorkflowCancelledEvent,
@@ -294,6 +295,9 @@ class WorkflowRunner:
         running_tasks: Dict[str, asyncio.Task[Dict[str, Any]]] = {}
         steps_since_last_checkpoint = 0
 
+        # Create a shared queue for progress events from all steps
+        progress_queue: asyncio.Queue[tuple[str, Dict[str, Any]]] = asyncio.Queue()
+
         while len(completed_steps) < len(workflow.steps):
             # Check for cancellation before starting any new steps
             cancellation_token = self._cancellation_tokens.get(workflow.id)
@@ -373,7 +377,13 @@ class WorkflowRunner:
                     # Start the step task
                     task = asyncio.create_task(
                         self._run_step_with_semaphore(
-                            step, input_data, execution.state, cancellation_token
+                            step,
+                            step_id,
+                            input_data,
+                            execution.state,
+                            progress_queue,
+                            workflow.id,
+                            cancellation_token,
                         )
                     )
                     # Link task to cancellation token for immediate cancellation
@@ -383,11 +393,36 @@ class WorkflowRunner:
 
                     logger.info(f"Started step {step_id} in workflow {workflow.id}")
 
-            # Wait for at least one task to complete
+            # Wait for at least one task to complete (or very short timeout to check progress)
             if running_tasks:
-                done, _ = await asyncio.wait(
-                    running_tasks.values(), return_when=asyncio.FIRST_COMPLETED
-                )
+                try:
+                    done, pending = await asyncio.wait(
+                        running_tasks.values(),
+                        return_when=asyncio.FIRST_COMPLETED,
+                        timeout=0.01,  # Check progress queue frequently
+                    )
+                except asyncio.TimeoutError:
+                    done = set()
+
+                # Drain progress queue and yield progress events
+                while not progress_queue.empty():
+                    try:
+                        step_id_prog, progress_data = progress_queue.get_nowait()
+                        yield StepProgressEvent(
+                            timestamp=datetime.now(),
+                            workflow_id=workflow.id,
+                            step_id=step_id_prog,
+                            message=progress_data["message"],
+                            completed=progress_data.get("completed"),
+                            total=progress_data.get("total"),
+                            metadata=progress_data.get("metadata", {}),
+                        )
+                    except asyncio.QueueEmpty:
+                        break
+
+                # If no tasks completed, continue to next loop iteration
+                if not done:
+                    continue
 
                 # Process completed tasks
                 for task in done:
@@ -537,16 +572,23 @@ class WorkflowRunner:
     async def _run_step_with_semaphore(
         self,
         step: BaseStep[Any, Any],
+        step_id: str,
         input_data: Dict[str, Any],
         workflow_state: Dict[str, Any],
+        progress_queue: asyncio.Queue[tuple[str, Dict[str, Any]]],
+        workflow_id: str,
         cancellation_token: Optional[CancellationToken] = None,
     ) -> Dict[str, Any]:
-        """Run a step with concurrency control.
+        """Run a step with concurrency control and progress tracking.
 
         Args:
             step: Step to execute
+            step_id: ID of the step being executed
             input_data: Input data for the step
             workflow_state: Current workflow state
+            progress_queue: Queue for progress events
+            workflow_id: Workflow ID for logging
+            cancellation_token: Optional cancellation token
 
         Returns:
             Step output data
@@ -558,9 +600,24 @@ class WorkflowRunner:
             # This ensures modifications are persistent across steps
             typed_context = Context.from_state_ref(workflow_state)
 
+            # Set up progress callback
+            def progress_callback(progress_data: Dict[str, Any]) -> None:
+                """Callback for progress updates from step execution."""
+                try:
+                    progress_queue.put_nowait((step_id, progress_data))
+                except asyncio.QueueFull:
+                    logger.warning(
+                        f"Progress queue full, dropping progress update for step {step_id}"
+                    )
+
+            typed_context._progress_callback = progress_callback
+
             # Convert to dict for step.run(), but context modifications
             # will still affect the original workflow_state since it's the same dict reference
             context = typed_context.to_dict()
+
+            # Add the typed context object itself so steps can access methods like emit_progress()
+            context["_context_obj"] = typed_context
 
             # Add cancellation token to context so steps can check it
             if cancellation_token:

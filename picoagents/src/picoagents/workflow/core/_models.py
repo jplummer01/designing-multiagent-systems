@@ -5,7 +5,7 @@ Core data models for the workflow system.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -132,6 +132,7 @@ class Context(BaseModel):
     state: Dict[str, Any] = Field(
         default_factory=dict, description="Shared mutable workflow state"
     )
+    _progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -150,6 +151,31 @@ class Context(BaseModel):
     def set(self, key: str, value: Any) -> None:
         """Set a value in workflow state."""
         self.state[key] = value
+
+    def emit_progress(
+        self,
+        message: str,
+        completed: Optional[int] = None,
+        total: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Emit a progress update from within a workflow step.
+
+        Args:
+            message: Human-readable progress message
+            completed: Number of items completed (optional)
+            total: Total number of items (optional)
+            metadata: Additional metadata (optional)
+        """
+        if self._progress_callback:
+            progress_data = {
+                "message": message,
+                "completed": completed,
+                "total": total,
+                "metadata": metadata or {},
+            }
+            self._progress_callback(progress_data)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -184,6 +210,7 @@ class WorkflowEventType(str, Enum):
     STEP_STARTED = "step_started"
     STEP_COMPLETED = "step_completed"
     STEP_FAILED = "step_failed"
+    STEP_PROGRESS = "step_progress"
     EDGE_ACTIVATED = "edge_activated"
 
 
@@ -289,6 +316,25 @@ class StepFailedEvent(WorkflowEvent):
     def __str__(self) -> str:
         time_str = self.timestamp.strftime("%H:%M:%S")
         return f"[{time_str}] ❌ Step '{self.step_id}' failed: {self.error}"
+
+
+class StepProgressEvent(WorkflowEvent):
+    """Progress update from within a step execution."""
+
+    event_type: WorkflowEventType = WorkflowEventType.STEP_PROGRESS
+    step_id: str
+    message: str
+    completed: Optional[int] = None
+    total: Optional[int] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def __str__(self) -> str:
+        time_str = self.timestamp.strftime("%H:%M:%S")
+        progress_str = ""
+        if self.completed is not None and self.total is not None:
+            percentage = (self.completed / self.total * 100) if self.total > 0 else 0
+            progress_str = f" ({self.completed}/{self.total}, {percentage:.0f}%)"
+        return f"[{time_str}] 🔄 Step '{self.step_id}': {self.message}{progress_str}"
 
 
 class EdgeActivatedEvent(WorkflowEvent):

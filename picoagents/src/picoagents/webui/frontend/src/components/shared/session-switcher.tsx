@@ -46,11 +46,12 @@ export function SessionSwitcher({
     }
   };
 
+  // Load sessions when dropdown opens OR when we have a currentSessionId
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || currentSessionId) {
       loadSessions();
     }
-  }, [isOpen, entityId]);
+  }, [isOpen, entityId, currentSessionId]);
 
   const handleNewSession = async () => {
     try {

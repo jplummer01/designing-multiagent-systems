@@ -21,6 +21,7 @@ import type {
   WorkflowInfo,
   AppState,
   StreamEvent,
+  SessionInfo,
 } from "@/types";
 
 
@@ -32,6 +33,9 @@ export default function App() {
     workflows: [],
     isLoading: true,
   });
+
+  // Session cache: entity_id -> SessionInfo
+  const [sessionCache, setSessionCache] = useState<Record<string, SessionInfo>>({});
 
   const [debugEvents, setDebugEvents] = useState<StreamEvent[]>([]);
   const [debugPanelOpen, setDebugPanelOpen] = useState(true);
@@ -76,6 +80,45 @@ export default function App() {
     loadData();
   }, []);
 
+  // Load session for initially selected entity
+  useEffect(() => {
+    const loadInitialSession = async () => {
+      if (appState.selectedEntity && !appState.currentSession) {
+        // Check if we have a cached session
+        const cachedSession = sessionCache[appState.selectedEntity.id];
+
+        if (cachedSession) {
+          setAppState((prev) => ({
+            ...prev,
+            currentSession: cachedSession,
+          }));
+        } else {
+          // No cached session - get or create one
+          try {
+            const session = await apiClient.getOrCreateSession(
+              appState.selectedEntity.id,
+              appState.selectedEntity.type
+            );
+
+            setSessionCache((prev) => ({
+              ...prev,
+              [appState.selectedEntity!.id]: session,
+            }));
+
+            setAppState((prev) => ({
+              ...prev,
+              currentSession: session,
+            }));
+          } catch (error) {
+            console.error("Failed to load initial session:", error);
+          }
+        }
+      }
+    };
+
+    loadInitialSession();
+  }, [appState.selectedEntity, appState.currentSession, sessionCache]);
+
   // Save debug panel width to localStorage
   useEffect(() => {
     localStorage.setItem("debugPanelWidth", debugPanelWidth.toString());
@@ -117,16 +160,64 @@ export default function App() {
   }, []);
 
   // Handle entity selection
-  const handleEntitySelect = useCallback((entity: Entity) => {
-    setAppState((prev) => ({
-      ...prev,
-      selectedEntity: entity,
-      currentSession: undefined,
-    }));
+  const handleEntitySelect = useCallback(async (entity: Entity) => {
+    // Check if we already have a cached session for this entity
+    const cachedSession = sessionCache[entity.id];
+
+    if (cachedSession) {
+      // Use cached session
+      setAppState((prev) => ({
+        ...prev,
+        selectedEntity: entity,
+        currentSession: cachedSession,
+      }));
+    } else {
+      // No cached session - get or create one from backend
+      try {
+        const session = await apiClient.getOrCreateSession(entity.id, entity.type);
+
+        // Cache it
+        setSessionCache((prev) => ({
+          ...prev,
+          [entity.id]: session,
+        }));
+
+        // Set in app state
+        setAppState((prev) => ({
+          ...prev,
+          selectedEntity: entity,
+          currentSession: session,
+        }));
+      } catch (error) {
+        console.error("Failed to get/create session:", error);
+        // Fallback - set entity without session
+        setAppState((prev) => ({
+          ...prev,
+          selectedEntity: entity,
+          currentSession: undefined,
+        }));
+      }
+    }
 
     // Clear debug events when switching entities
     setDebugEvents([]);
-  }, []);
+  }, [sessionCache]);
+
+  // Handle session changes (when user manually switches sessions)
+  const handleSessionChange = useCallback((session: SessionInfo) => {
+    setAppState((prev) => ({
+      ...prev,
+      currentSession: session,
+    }));
+
+    // Update cache if we have a selected entity
+    if (appState.selectedEntity) {
+      setSessionCache((prev) => ({
+        ...prev,
+        [appState.selectedEntity!.id]: session,
+      }));
+    }
+  }, [appState.selectedEntity]);
 
   // Handle debug events from active view
   const handleDebugEvent = useCallback((event: StreamEvent) => {
@@ -300,6 +391,8 @@ export default function App() {
         return (
           <AgentView
             selectedAgent={appState.selectedEntity as AgentInfo}
+            currentSession={appState.currentSession}
+            onSessionChange={handleSessionChange}
             onDebugEvent={handleDebugEvent}
           />
         );
@@ -307,6 +400,8 @@ export default function App() {
         return (
           <OrchestratorView
             selectedOrchestrator={appState.selectedEntity as OrchestratorInfo}
+            currentSession={appState.currentSession}
+            onSessionChange={handleSessionChange}
             onDebugEvent={handleDebugEvent}
           />
         );

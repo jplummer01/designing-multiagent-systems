@@ -3,12 +3,14 @@
  * Features: Chat interface, message streaming, PicoAgents message format
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ChatBase } from "@/components/shared/chat-base";
 import { SessionSwitcher } from "@/components/shared/session-switcher";
 import { ToolApprovalBanner } from "@/components/shared/tool-approval-banner";
 import { ExampleTasksDisplay } from "@/components/shared/example-tasks-display";
+import { ContextInspector } from "@/components/shared/context-inspector";
 import {
   Bot,
   Brain,
@@ -18,234 +20,75 @@ import {
   ChevronUp,
   ArrowUp,
   ArrowDown,
+  Eye,
 } from "lucide-react";
 import { apiClient } from "@/services/api";
+import { useEntityExecution } from "@/hooks/useEntityExecution";
+import { AgentMessageHandler } from "@/hooks/messageHandlers";
 import type {
   AgentInfo,
   Message,
   StreamEvent,
-  RunEntityRequest,
-  ToolApprovalRequest,
-  ToolApprovalResponse,
+  SessionInfo,
 } from "@/types";
 
 interface AgentViewProps {
   selectedAgent: AgentInfo;
+  currentSession?: SessionInfo;
+  onSessionChange: (session: SessionInfo) => void;
   onDebugEvent: (event: StreamEvent) => void;
 }
 
-export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+export function AgentView({
+  selectedAgent,
+  currentSession,
+  onSessionChange,
+  onDebugEvent
+}: AgentViewProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(
-    undefined
-  );
-  const [pendingApproval, setPendingApproval] = useState<ToolApprovalRequest | null>(null);
-  const [pendingApprovalResponses, setPendingApprovalResponses] = useState<ToolApprovalResponse[]>([]);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const [messageUsage, setMessageUsage] = useState<Map<number, { tokens_input: number; tokens_output: number }>>(new Map());
-  const [sessionTotalUsage, setSessionTotalUsage] = useState<{ tokens_input: number; tokens_output: number }>({ tokens_input: 0, tokens_output: 0 });
+  const [isContextInspectorOpen, setIsContextInspectorOpen] = useState(false);
 
-  // Load session messages when session changes
-  const handleSessionChange = useCallback(
-    async (sessionId: string | undefined) => {
-      setCurrentSessionId(sessionId);
+  // Create message handler (memoize to avoid recreating)
+  const messageHandler = useMemo(() => new AgentMessageHandler(), []);
 
-      if (sessionId) {
-        // Load existing session messages
-        try {
-          const response = await apiClient.getSessionMessages(sessionId);
-          setMessages(response.messages);
-        } catch (error) {
-          console.error("Failed to load session messages:", error);
-          setMessages([]);
-        }
-      } else {
-        // New session - clear messages
-        setMessages([]);
-      }
-    },
-    []
-  );
+  // Use unified execution hook
+  const {
+    messages,
+    isStreaming,
+    sessionTotalUsage,
+    pendingApproval,
+    handleSendMessage,
+    handleStop,
+    handleClearMessages,
+    handleApprove,
+    handleReject,
+  } = useEntityExecution({
+    entityId: selectedAgent.id,
+    entityType: "agent",
+    entityName: selectedAgent.name || selectedAgent.id,
+    currentSession,
+    onDebugEvent,
+    onSessionChange,
+    messageHandler,
+    supportsToolApproval: true,
+    supportsTokenStreaming: true,
+  });
 
-  const handleSendMessage = useCallback(
-    async (newMessages: Message[], approvalResponses?: ToolApprovalResponse[]) => {
-      // Add new messages to state
-      setMessages((prev) => [...prev, ...newMessages]);
-      setIsStreaming(true);
-
-      // Create new AbortController for this request
-      abortControllerRef.current = new AbortController();
-
-      // Use provided approval responses or fallback to state
-      const approvalsToSend = approvalResponses || (pendingApprovalResponses.length > 0 ? pendingApprovalResponses : undefined);
-
+  // Handle local session switching from SessionSwitcher
+  const handleLocalSessionChange = useCallback(async (sessionId: string | undefined) => {
+    if (sessionId) {
       try {
-        const request: RunEntityRequest = {
-          messages: newMessages, // Send only NEW messages
-          session_id: currentSessionId, // Backend will append to session
-          stream_tokens: true,
-          approval_responses: approvalsToSend,
-        };
-
-        // Debug logging
-        console.log("🔍 Full request being sent:", JSON.stringify(request, null, 2));
-
-        // Clear pending approvals after sending
-        if (approvalsToSend) {
-          setPendingApprovalResponses([]);
-        }
-
-        let assistantMessage: Message = {
-          role: "assistant",
-          content: "",
-          source: selectedAgent.name || selectedAgent.id,
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-
-        for await (const event of apiClient.streamEntityExecution(
-          selectedAgent.id,
-          request,
-          abortControllerRef.current.signal
-        )) {
-          onDebugEvent(event);
-
-          // Capture session_id from first event
-          if (!currentSessionId && event.session_id) {
-            setCurrentSessionId(event.session_id);
-          }
-
-          // Handle different event types
-          if (event.type === "token_chunk") {
-            // Handle streaming token chunks
-            if (event.data?.content) {
-              assistantMessage = {
-                ...assistantMessage,
-                content: assistantMessage.content + event.data.content,
-              };
-
-              setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
-            }
-          } else if (event.type === "message") {
-            // Check if it's an assistant message (fallback for non-streaming)
-            if (event.data?.role === "assistant" && event.data?.content) {
-              assistantMessage = {
-                role: "assistant",
-                content: event.data.content,
-                source:
-                  event.data.source || selectedAgent.name || selectedAgent.id,
-              };
-
-              setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
-            }
-          } else if (event.type === "tool_approval") {
-            // Tool approval requested - show dialog
-            if (event.data?.approval_request) {
-              setPendingApproval(event.data.approval_request);
-            }
-          } else if (event.type === "complete") {
-            // Final response - update with complete message and usage
-            if (event.data?.messages) {
-              const lastMessage =
-                event.data.messages[event.data.messages.length - 1];
-              if (lastMessage?.role === "assistant") {
-                assistantMessage = {
-                  role: "assistant",
-                  content: lastMessage.content,
-                  source:
-                    lastMessage.source ||
-                    selectedAgent.name ||
-                    selectedAgent.id,
-                };
-
-                setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
-              }
-            }
-
-            // Capture usage statistics
-            if (event.data?.usage) {
-              const usage = event.data.usage;
-              const messageIndex = messages.length; // Index of the assistant message
-
-              // Store usage for this message
-              setMessageUsage((prev) => {
-                const newMap = new Map(prev);
-                newMap.set(messageIndex, {
-                  tokens_input: usage.tokens_input || 0,
-                  tokens_output: usage.tokens_output || 0,
-                });
-                return newMap;
-              });
-
-              // Update session total
-              setSessionTotalUsage((prev) => ({
-                tokens_input: prev.tokens_input + (usage.tokens_input || 0),
-                tokens_output: prev.tokens_output + (usage.tokens_output || 0),
-              }));
-            }
-            break;
-          }
+        // Fetch the full session info
+        const sessions = await apiClient.getSessions(selectedAgent.id);
+        const session = sessions.find(s => s.id === sessionId);
+        if (session) {
+          onSessionChange(session);
         }
       } catch (error) {
-        console.error("Failed to send message:", error);
-
-        // Check if this was an abort (user clicked stop)
-        if (error instanceof Error && error.name === "AbortError") {
-          const cancelMessage: Message = {
-            role: "assistant",
-            content: "Cancelled by user",
-            source: "system",
-          };
-          setMessages((prev) => [...prev.slice(0, -1), cancelMessage]);
-        } else {
-          const errorMessage: Message = {
-            role: "assistant",
-            content: `Error: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
-            source: "system",
-          };
-          setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
-        }
-      } finally {
-        setIsStreaming(false);
-        abortControllerRef.current = null;
+        console.error("Failed to load session:", error);
       }
-    },
-    [selectedAgent.id, currentSessionId, pendingApprovalResponses, onDebugEvent]
-  );
-
-  const handleStop = useCallback(() => {
-    if (abortControllerRef.current) {
-      console.log("🛑 Stopping agent execution");
-      abortControllerRef.current.abort();
     }
-  }, []);
-
-  const handleClearMessages = useCallback(() => {
-    setMessages([]);
-    setCurrentSessionId(undefined); // Also reset session
-    setMessageUsage(new Map()); // Clear usage tracking
-    setSessionTotalUsage({ tokens_input: 0, tokens_output: 0 }); // Reset totals
-  }, []);
-
-  const handleApprove = useCallback((response: ToolApprovalResponse) => {
-    console.log("📝 handleApprove called with:", response);
-    setPendingApproval(null);
-
-    // Send immediately with approval response
-    handleSendMessage([], [response]);
-  }, [handleSendMessage]);
-
-  const handleReject = useCallback((response: ToolApprovalResponse) => {
-    console.log("📝 handleReject called with:", response);
-    setPendingApproval(null);
-
-    // Send immediately with rejection response
-    handleSendMessage([], [response]);
-  }, [handleSendMessage]);
+  }, [selectedAgent.id, onSessionChange]);
 
   return (
     <div className="flex flex-col h-full">
@@ -273,8 +116,8 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
             <div className="flex items-center gap-3">
               <SessionSwitcher
                 entityId={selectedAgent.id}
-                currentSessionId={currentSessionId}
-                onSessionChange={handleSessionChange}
+                currentSessionId={currentSession?.id}
+                onSessionChange={handleLocalSessionChange}
               />
               <div className="h-4 w-px bg-border" />
               <div className="flex flex-wrap gap-2">
@@ -299,12 +142,24 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
                 </Badge>
                 {/* Session token usage */}
                 {(sessionTotalUsage.tokens_input > 0 || sessionTotalUsage.tokens_output > 0) && (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <ArrowUp className="h-3 w-3" />
-                    {sessionTotalUsage.tokens_input.toLocaleString()}
-                    <ArrowDown className="h-3 w-3" />
-                    {sessionTotalUsage.tokens_output.toLocaleString()}
-                  </Badge>
+                  <>
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <ArrowUp className="h-3 w-3" />
+                      {sessionTotalUsage.tokens_input.toLocaleString()}
+                      <ArrowDown className="h-3 w-3" />
+                      {sessionTotalUsage.tokens_output.toLocaleString()}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsContextInspectorOpen(true)}
+                      className="h-7 px-2 text-xs gap-1"
+                      title="Inspect context window"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Inspect
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -416,7 +271,6 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
           onClearMessages={handleClearMessages}
           onStop={handleStop}
           isStreaming={isStreaming}
-          messageUsage={messageUsage}
           sessionTotalUsage={sessionTotalUsage}
           placeholder={`Chat with ${selectedAgent.name || selectedAgent.id}...`}
           emptyStateTitle="Agent Chat"
@@ -444,6 +298,13 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
               onReject={handleReject}
             />
           }
+        />
+
+        {/* Context Inspector */}
+        <ContextInspector
+          messages={messages}
+          isOpen={isContextInspectorOpen}
+          onClose={() => setIsContextInspectorOpen(false)}
         />
       </div>
     </div>

@@ -11,6 +11,7 @@ from typing import Any, AsyncGenerator, List, Optional
 from .._cancellation_token import CancellationToken
 from ..context import AgentContext
 from ..messages import Message
+from ..types import AgentResponse
 from ..workflow import WorkflowRunner
 from ._models import WebUIStreamEvent
 from ._sessions import SessionManager
@@ -72,20 +73,35 @@ class ExecutionEngine:
 
         try:
             # Stream raw PicoAgent events
-            # If we have new messages, pass them as task; otherwise pass context to resume
-            task = messages if messages else None
+            # Don't pass messages as task since we already added them to context
+            # The agent will use context.messages directly
             async for event in agent.run_stream(
-                task=task,
+                task=None,  # Context already has messages
                 context=context,
                 verbose=True,
                 stream_tokens=stream_tokens,
                 cancellation_token=cancellation_token,
             ):
-                # Wrap the raw event with session context
-                wrapped_event = WebUIStreamEvent(
-                    session_id=session_id,
-                    event=event,  # Raw PicoAgent event
-                )
+                # Transform AgentResponse to include messages at top level for frontend
+                if isinstance(event, AgentResponse):
+                    # Extract messages from context for frontend compatibility
+                    event_data = {
+                        "messages": [msg.model_dump() for msg in event.context.messages] if event.context else [],
+                        "usage": event.usage.model_dump(),
+                        "source": event.source,
+                        "finish_reason": event.finish_reason,
+                        "timestamp": event.timestamp.isoformat(),
+                    }
+                    wrapped_event = WebUIStreamEvent(
+                        session_id=session_id,
+                        event=event_data,
+                    )
+                else:
+                    # Wrap the raw event with session context
+                    wrapped_event = WebUIStreamEvent(
+                        session_id=session_id,
+                        event=event,  # Raw PicoAgent event
+                    )
 
                 yield f"data: {wrapped_event.model_dump_json()}\n\n"
 

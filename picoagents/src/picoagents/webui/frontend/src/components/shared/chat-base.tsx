@@ -38,6 +38,9 @@ function MessageBubble({ message, isStreaming, usage }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const Icon = isUser ? User : Bot;
 
+  // Show agent name for multi-agent orchestrator messages
+  const showAgentName = !isUser && message.source && message.source !== "user";
+
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
       <div
@@ -53,6 +56,13 @@ function MessageBubble({ message, isStreaming, usage }: MessageBubbleProps) {
           isUser ? "items-end" : "items-start"
         } max-w-[80%]`}
       >
+        {/* Agent name label - shown above message for multi-agent orchestrators */}
+        {showAgentName && (
+          <div className="text-xs font-medium text-muted-foreground px-1">
+            {message.source}
+          </div>
+        )}
+
         <div
           className={`rounded px-3 py-2 text-sm ${
             isUser ? "bg-primary text-primary-foreground" : "bg-muted"
@@ -63,8 +73,8 @@ function MessageBubble({ message, isStreaming, usage }: MessageBubbleProps) {
             isStreaming={isStreaming}
           />
         </div>
-        {/* Token usage - only show for assistant messages with usage data */}
-        {!isUser && usage && (usage.tokens_input > 0 || usage.tokens_output > 0) && (
+        {/* Token usage - show for assistant messages with usage data */}
+        {!isUser && usage && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
             <div className="flex items-center gap-1">
               <ArrowUp className="h-3 w-3" />
@@ -110,7 +120,7 @@ export function ChatBase({
   emptyStateCustom,
   beforeInput,
   messageUsage,
-  sessionTotalUsage,
+  sessionTotalUsage: _sessionTotalUsage,
 }: ChatBaseProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -181,8 +191,8 @@ export function ChatBase({
                 const isLastMessage = index === messages.length - 1;
                 const shouldShowStreaming = isStreaming && isLastMessage && message.role === "assistant";
 
-                // Get usage for this message if available
-                const usage = messageUsage?.get(index);
+                // Get usage for this message if available (check both message.usage and messageUsage Map for backwards compatibility)
+                const usage = (message as any).usage || messageUsage?.get(index);
 
                 return (
                   <MessageBubble

@@ -28,6 +28,7 @@ agent_memory/
 !pyproject.toml
 !package.json
 !tsconfig.json
+!premium-samples/samples.json
 # C extensions
 *.so
 

@@ -5,10 +5,11 @@ These tools enable agents to search the web, fetch content, and extract
 information from various sources without using LLMs.
 """
 
+import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from ..types import ToolResult
 from ._base import BaseTool
@@ -33,6 +34,20 @@ try:
     ARXIV_AVAILABLE = True
 except ImportError:
     ARXIV_AVAILABLE = False
+
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    YOUTUBE_TRANSCRIPT_AVAILABLE = True
+except ImportError:
+    YOUTUBE_TRANSCRIPT_AVAILABLE = False
+
+try:
+    import html2text
+
+    HTML2TEXT_AVAILABLE = True
+except ImportError:
+    HTML2TEXT_AVAILABLE = False
 
 
 class GoogleSearchTool(BaseTool):
@@ -353,7 +368,8 @@ class WebFetchTool(BaseTool):
         super().__init__(
             name="web_fetch",
             description=(
-                "Fetch the HTML content from a URL. Returns the raw HTML or text content. "
+                "Fetch content from a URL in multiple formats: raw HTML, plain text, or structured markdown. "
+                "Markdown format preserves document structure (headings, links, lists, tables) for better analysis. "
                 "URL access is filtered based on allowed/blocked domain rules for security. "
                 "Content is truncated if it exceeds maximum length."
             ),
@@ -368,9 +384,10 @@ class WebFetchTool(BaseTool):
             "type": "object",
             "properties": {
                 "url": {"type": "string", "description": "URL to fetch"},
-                "extract_text": {
-                    "type": "boolean",
-                    "description": "If true, extract only text content (requires beautifulsoup4)",
+                "output_format": {
+                    "type": "string",
+                    "enum": ["html", "text", "markdown"],
+                    "description": "Output format: 'html' (raw HTML), 'text' (plain text), or 'markdown' (structured markdown). Default: 'html'",
                 },
             },
             "required": ["url"],
@@ -386,7 +403,11 @@ class WebFetchTool(BaseTool):
             )
 
         url = parameters["url"]
-        extract_text = parameters.get("extract_text", False)
+        output_format = parameters.get("output_format", "html")
+
+        # Handle legacy extract_text parameter for backward compatibility
+        if "extract_text" in parameters and parameters["extract_text"]:
+            output_format = "text"
 
         try:
             parsed_url = urlparse(url)
@@ -402,25 +423,60 @@ class WebFetchTool(BaseTool):
                     metadata={"url": url, "domain": parsed_url.netloc},
                 )
 
-            async with httpx.AsyncClient(follow_redirects=True) as client:
+            # Add browser-like headers
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+
+            async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
                 response = await client.get(url, timeout=30.0)
                 response.raise_for_status()
 
             content = response.text
+            original_length = len(content)
 
-            # Truncate content if too long
-            was_truncated = False
-            if len(content) > self.max_content_length:
-                content = content[: self.max_content_length]
-                was_truncated = True
+            # Process based on output format
+            if output_format == "markdown":
+                if not HTML2TEXT_AVAILABLE:
+                    return ToolResult(
+                        success=False,
+                        result=None,
+                        error="html2text not installed. Install with: pip install html2text or pip install picoagents[research]",
+                        metadata={"url": url},
+                    )
 
-            if extract_text and BS4_AVAILABLE:
+                # Configure html2text converter
+                h = html2text.HTML2Text()
+                h.body_width = 0  # Don't wrap lines
+                h.ignore_images = False
+                h.ignore_emphasis = False
+                h.ignore_links = False
+                h.ignore_tables = False
+
+                content = h.handle(content)
+
+            elif output_format == "text":
+                if not BS4_AVAILABLE:
+                    return ToolResult(
+                        success=False,
+                        result=None,
+                        error="beautifulsoup4 not installed. Install with: pip install beautifulsoup4",
+                        metadata={"url": url},
+                    )
+
                 soup = BeautifulSoup(content, "html.parser")
+                # Remove script and style elements
                 for script in soup(["script", "style"]):
                     script.decompose()
                 text = soup.get_text()
                 lines = (line.strip() for line in text.splitlines())
                 content = "\n".join(line for line in lines if line)
+
+            # Truncate content if too long (after processing)
+            was_truncated = False
+            if len(content) > self.max_content_length:
+                content = content[: self.max_content_length]
+                was_truncated = True
 
             return ToolResult(
                 success=True,
@@ -428,7 +484,9 @@ class WebFetchTool(BaseTool):
                 error=None,
                 metadata={
                     "url": url,
+                    "output_format": output_format,
                     "content_length": len(content),
+                    "original_length": original_length,
                     "status_code": response.status_code,
                     "truncated": was_truncated,
                     "max_length": self.max_content_length,
@@ -635,6 +693,162 @@ class ArxivSearchTool(BaseTool):
             )
 
 
+class YouTubeCaptionTool(BaseTool):
+    """Extract captions/transcripts from YouTube videos."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="youtube_caption",
+            description=(
+                "Extract captions/transcripts from YouTube videos. "
+                "Provide a YouTube URL and get the full transcript text. "
+                "Supports both standard YouTube URLs and youtu.be short links."
+            ),
+        )
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)",
+                },
+                "language": {
+                    "type": "string",
+                    "description": "Preferred caption language code (e.g., 'en', 'es', 'fr'). Defaults to 'en'.",
+                },
+            },
+            "required": ["url"],
+        }
+
+    def _extract_video_id(self, url: str) -> Optional[str]:
+        """Extract video ID from various YouTube URL formats."""
+        # Handle youtu.be short links
+        if "youtu.be" in url:
+            parsed = urlparse(url)
+            return parsed.path.lstrip("/").split("?")[0]
+
+        # Handle standard YouTube URLs
+        parsed = urlparse(url)
+        if parsed.hostname in ("www.youtube.com", "youtube.com", "m.youtube.com"):
+            if parsed.path == "/watch":
+                query_params = parse_qs(parsed.query)
+                return query_params.get("v", [None])[0]
+            elif parsed.path.startswith("/embed/"):
+                return parsed.path.split("/")[2]
+            elif parsed.path.startswith("/v/"):
+                return parsed.path.split("/")[2]
+
+        return None
+
+    async def execute(self, parameters: Dict[str, Any]) -> ToolResult:
+        if not YOUTUBE_TRANSCRIPT_AVAILABLE:
+            return ToolResult(
+                success=False,
+                result=None,
+                error="youtube-transcript-api not installed. Install with: pip install youtube-transcript-api",
+                metadata={},
+            )
+
+        url = parameters["url"]
+        language = parameters.get("language", "en")
+
+        try:
+            # Extract video ID
+            video_id = self._extract_video_id(url)
+            if not video_id:
+                return ToolResult(
+                    success=False,
+                    result=None,
+                    error=f"Could not extract video ID from URL: {url}",
+                    metadata={"url": url},
+                )
+
+            # Get transcript using youtube-transcript-api
+            # Create an instance of the API
+            yt_api = YouTubeTranscriptApi()
+
+            # Get list of available transcripts
+            try:
+                transcript_list = yt_api.list(video_id)
+            except Exception as e:
+                error_msg = str(e)
+                # Provide more helpful error messages for common issues
+                if "no element found" in error_msg.lower():
+                    error_msg = (
+                        "Could not fetch video transcripts. This may be due to: "
+                        "(1) YouTube rate limiting/bot detection, "
+                        "(2) video has no captions, "
+                        "(3) regional restrictions, or "
+                        "(4) the video is private/unavailable. "
+                        f"Original error: {error_msg}"
+                    )
+                return ToolResult(
+                    success=False,
+                    result=None,
+                    error=error_msg,
+                    metadata={"video_id": video_id, "url": url},
+                )
+
+            # Get available languages
+            available_languages = [t.language_code for t in transcript_list]
+
+            # Try to fetch transcript in the requested language
+            try:
+                fetched = transcript_list.find_transcript([language])
+                actual_language = fetched.language_code
+            except Exception:
+                # If requested language not available, use the first available
+                try:
+                    fetched = transcript_list.find_transcript(available_languages[:1])
+                    actual_language = fetched.language_code
+                except Exception as e:
+                    return ToolResult(
+                        success=False,
+                        result=None,
+                        error=f"No captions available for this video: {str(e)}",
+                        metadata={
+                            "video_id": video_id,
+                            "url": url,
+                            "available_languages": available_languages,
+                        },
+                    )
+
+            # Fetch the transcript data
+            transcript_data = fetched.fetch()
+
+            # Combine all transcript segments into one text
+            # transcript_data is a FetchedTranscript with snippets
+            transcript = " ".join(snippet.text for snippet in transcript_data)
+
+            # Clean up the transcript
+            transcript = re.sub(r"\s+", " ", transcript).strip()
+
+            return ToolResult(
+                success=True,
+                result=transcript,
+                error=None,
+                metadata={
+                    "video_id": video_id,
+                    "url": url,
+                    "language": actual_language,
+                    "length": len(transcript),
+                    "available_languages": available_languages,
+                    "segment_count": len(transcript_data),
+                },
+            )
+
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                result=None,
+                error=f"Failed to extract captions: {str(e)}",
+                metadata={"url": url},
+            )
+
+
 def create_research_tools(
     tavily_api_key: Optional[str] = None,
     google_api_key: Optional[str] = None,
@@ -673,10 +887,13 @@ def create_research_tools(
     if ARXIV_AVAILABLE:
         tools.append(ArxivSearchTool())
 
+    if YOUTUBE_TRANSCRIPT_AVAILABLE:
+        tools.append(YouTubeCaptionTool())
+
     if not tools:
         raise ImportError(
             "No research tools available. Install dependencies with: "
-            "pip install httpx beautifulsoup4 arxiv"
+            "pip install httpx beautifulsoup4 arxiv youtube-transcript-api"
         )
 
     return tools

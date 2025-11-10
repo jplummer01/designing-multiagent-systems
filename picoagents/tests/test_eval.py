@@ -55,12 +55,13 @@ class MockChatCompletionClient(BaseChatCompletionClient):
         from picoagents.types import ChatCompletionChunk
 
         yield ChatCompletionChunk(
-            content=self.response, is_complete=True, tool_call_chunk=None
+            content=self.response, is_complete=True, tool_call_chunk=None,
+            usage=Usage(duration_ms=100, llm_calls=1, tokens_input=50, tokens_output=25)
         )
 
 
 def create_test_trajectory(
-    task: EvalTask, messages: List, success: bool = True, error: str = None
+    task: EvalTask, messages: List, success: bool = True, error: str | None = None
 ) -> EvalTrajectory:
     """Helper to create test trajectories."""
     return EvalTrajectory(
@@ -339,8 +340,9 @@ async def test_judge_missing_expected_output():
 
     task = EvalTask(
         name="Test",
-        input="Question"
-        # No expected_output
+        input="Question",
+        expected_output=None,
+        
     )
 
     trajectory = create_test_trajectory(

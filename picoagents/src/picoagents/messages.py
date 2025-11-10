@@ -6,9 +6,12 @@ with each other and with LLMs, following the OpenAI API format.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, model_validator
+
+if TYPE_CHECKING:
+    from .types import Usage
 
 
 class BaseMessage(BaseModel):
@@ -69,6 +72,9 @@ class AssistantMessage(BaseMessage):
     )
     structured_content: Optional[BaseModel] = Field(
         default=None, description="Structured data when output_format is used"
+    )
+    usage: Optional["Usage"] = Field(
+        default=None, description="Token usage for this LLM call"
     )
 
     def __str__(self) -> str:

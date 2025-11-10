@@ -6,7 +6,7 @@ This example shows:
 1. Core tools (calculator, datetime, json, regex, think) - no external dependencies
 2. Memory tools (persistent file-based memory) - no external dependencies
 3. Coding tools (file operations, code execution) - no external dependencies
-4. Research tools (web search, content extraction) - requires: httpx, beautifulsoup4, arxiv
+4. Research tools (web search, content extraction, youtube captions) - requires: httpx, beautifulsoup4, arxiv, html2text, youtube-transcript-api
 
 Run with: python examples/tools/basic.py
 """

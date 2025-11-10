@@ -3,6 +3,17 @@
  * Aligned with the PicoAgents Python backend types
  */
 
+// Usage Statistics (from picoagents.types)
+export interface Usage {
+  duration_ms: number;
+  llm_calls: number;
+  tokens_input: number;
+  tokens_output: number;
+  tool_calls: number;
+  memory_operations: number;
+  cost_estimate?: number;
+}
+
 // Base Message Types (from picoagents.messages)
 // EXACT match with Python backend types
 
@@ -25,6 +36,7 @@ export interface AssistantMessage extends BaseMessage {
   role: "assistant";  // Literal type with default="assistant" in Python
   tool_calls?: ToolCallRequest[];  // Optional: Tool calls made by the assistant
   structured_content?: any;  // Optional: Structured data when output_format is used (BaseModel in Python)
+  usage?: Usage;  // Optional: Token usage for this LLM call
 }
 
 export interface ToolMessage extends BaseMessage {
@@ -75,17 +87,6 @@ export interface ToolApprovalResponse {
   tool_call_id: string;
   approved: boolean;
   reason?: string;
-}
-
-// Usage Statistics
-export interface Usage {
-  duration_ms: number;
-  llm_calls: number;
-  tokens_input: number;
-  tokens_output: number;
-  tool_calls: number;
-  memory_operations: number;
-  cost_estimate?: number;
 }
 
 // Agent Response Types
@@ -158,7 +159,7 @@ export interface SessionContext {
 
 // Streaming Event Types
 export interface StreamEvent {
-  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "tool_approval" | "thinking" | "error" | "usage" | "complete" | "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error" | "task_start" | "task_complete" | "model_call" | "model_response" | "unknown";
+  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "tool_approval" | "thinking" | "error" | "usage" | "complete" | "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error" | "task_start" | "task_complete" | "model_call" | "model_response" | "orchestration_start" | "orchestration_complete" | "agent_selection" | "agent_execution_start" | "agent_execution_complete" | "unknown";
   data: any;
   session_id?: string;
   timestamp: string;

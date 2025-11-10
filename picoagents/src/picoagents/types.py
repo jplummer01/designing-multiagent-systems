@@ -174,6 +174,10 @@ class ChatCompletionChunk(BaseModel):
     tool_call_chunk: Optional[Dict[str, Any]] = Field(
         None, description="Partial tool call data"
     )
+    usage: Optional["Usage"] = Field(
+        None,
+        description="Token usage statistics (only present in final chunk when stream_options.include_usage=true)",
+    )
 
     class Config:
         frozen = True
@@ -624,3 +628,4 @@ from .messages import AssistantMessage
 
 ChatCompletionResult.model_rebuild()
 AgentResponse.model_rebuild()
+AssistantMessage.model_rebuild()  # Rebuild to resolve Usage forward reference
