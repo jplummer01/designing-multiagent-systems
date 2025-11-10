@@ -9,6 +9,7 @@ import pytest
 
 from picoagents._cancellation_token import CancellationToken
 from picoagents.agents import BaseAgent
+from picoagents.context import AgentContext
 from picoagents.messages import AssistantMessage, Message, UserMessage
 from picoagents.orchestration import (
     MaxMessageTermination,
@@ -47,23 +48,27 @@ class MockAgent(BaseAgent):
         # Simulate agent processing
         await asyncio.sleep(0.01)
 
-        # Create response messages - preserve full context plus new response
-        if isinstance(task, list):
-            # Return full context plus our response
-            context_messages = task.copy()
-        elif isinstance(task, str):
-            context_messages = [UserMessage(content=task, source="user")]
-        else:
-            context_messages = [task]
+        # Create context with messages (matching real Agent behavior)
+        context = AgentContext()
 
+        # Add input messages to context
+        if isinstance(task, list):
+            for msg in task:
+                context.add_message(msg)
+        elif isinstance(task, str):
+            context.add_message(UserMessage(content=task, source="user"))
+        else:
+            context.add_message(task)
+
+        # Add assistant response
         assistant_message = AssistantMessage(
             content=self.response_text, source=self.name
         )
-        all_messages = cast(List[Message], context_messages + [assistant_message])
+        context.add_message(assistant_message)
 
         return AgentResponse(
+            context=context,
             source=self.name,
-            messages=all_messages,
             usage=Usage(duration_ms=10, llm_calls=1, tokens_input=10, tokens_output=5),
             finish_reason="stop",
         )
@@ -83,28 +88,33 @@ class MockAgent(BaseAgent):
         # Simulate agent processing
         await asyncio.sleep(0.01)
 
-        # Create response messages - preserve full context plus new response
-        if isinstance(task, list):
-            # Return full context plus our response
-            context_messages = task.copy()
-        elif isinstance(task, str):
-            context_messages = [UserMessage(content=task, source="user")]
-        else:
-            context_messages = [task]
+        # Create context with messages (matching real Agent behavior)
+        context = AgentContext()
 
+        # Add input messages to context and yield them
+        if isinstance(task, list):
+            for msg in task:
+                context.add_message(msg)
+                yield msg
+        elif isinstance(task, str):
+            msg = UserMessage(content=task, source="user")
+            context.add_message(msg)
+            yield msg
+        else:
+            context.add_message(task)
+            yield task
+
+        # Add and yield assistant response
         assistant_message = AssistantMessage(
             content=self.response_text, source=self.name
         )
-        all_messages = cast(List[Message], context_messages + [assistant_message])
+        context.add_message(assistant_message)
+        yield assistant_message
 
-        # Yield all messages
-        for message in all_messages:
-            yield message
-
-        # Yield final response
+        # Yield final response with context
         yield AgentResponse(
+            context=context,
             source=self.name,
-            messages=all_messages,
             usage=Usage(duration_ms=10, llm_calls=1, tokens_input=10, tokens_output=5),
             finish_reason="stop",
         )
@@ -313,28 +323,32 @@ async def test_round_robin_orchestrator_context_management():
 
             await asyncio.sleep(0.01)
 
-            # Analyze the context to count how many turns have occurred
+            # Create context with messages (matching real Agent behavior)
+            context = AgentContext()
+
+            # Analyze the task to count how many turns have occurred
+            response_count = 0
             if isinstance(task, str):
                 # Count occurrences of "Iteration" in the context (indicating previous agent responses)
                 response_count = task.count("Iteration")
-                context_messages = [UserMessage(content=task, source="user")]
+                context.add_message(UserMessage(content=task, source="user"))
             elif isinstance(task, list):
                 response_count = len(
                     [msg for msg in task if isinstance(msg, AssistantMessage)]
                 )
-                context_messages = task.copy()
+                for msg in task:
+                    context.add_message(msg)
             else:
-                response_count = 0
-                context_messages = [UserMessage(content=str(task), source="user")]
+                context.add_message(UserMessage(content=str(task), source="user"))
 
             assistant_message = AssistantMessage(
                 content=f"Iteration {response_count + 1}", source=self.name
             )
-            all_messages = cast(List[Message], context_messages + [assistant_message])
+            context.add_message(assistant_message)
 
             return AgentResponse(
+                context=context,
                 source=self.name,
-                messages=all_messages,
                 usage=Usage(duration_ms=10, llm_calls=1),
                 finish_reason="stop",
             )
@@ -351,33 +365,39 @@ async def test_round_robin_orchestrator_context_management():
 
             await asyncio.sleep(0.01)
 
-            # Analyze the context to count how many turns have occurred
+            # Create context with messages (matching real Agent behavior)
+            context = AgentContext()
+
+            # Analyze the task to count how many turns have occurred
+            response_count = 0
             if isinstance(task, str):
                 # Count occurrences of "Iteration" in the context (indicating previous agent responses)
                 response_count = task.count("Iteration")
-                context_messages = [UserMessage(content=task, source="user")]
+                msg = UserMessage(content=task, source="user")
+                context.add_message(msg)
+                yield msg
             elif isinstance(task, list):
                 response_count = len(
                     [msg for msg in task if isinstance(msg, AssistantMessage)]
                 )
-                context_messages = task.copy()
+                for msg in task:
+                    context.add_message(msg)
+                    yield msg
             else:
-                response_count = 0
-                context_messages = [UserMessage(content=str(task), source="user")]
+                msg = UserMessage(content=str(task), source="user")
+                context.add_message(msg)
+                yield msg
 
             assistant_message = AssistantMessage(
                 content=f"Iteration {response_count + 1}", source=self.name
             )
-            all_messages = cast(List[Message], context_messages + [assistant_message])
+            context.add_message(assistant_message)
+            yield assistant_message
 
-            # Yield all messages
-            for message in all_messages:
-                yield message
-
-            # Yield final response
+            # Yield final response with context
             yield AgentResponse(
+                context=context,
                 source=self.name,
-                messages=all_messages,
                 usage=Usage(duration_ms=10, llm_calls=1),
                 finish_reason="stop",
             )

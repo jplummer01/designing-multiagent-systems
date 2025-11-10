@@ -90,33 +90,9 @@ def execution_engine():
     return ExecutionEngine(session_manager)
 
 
-@pytest.mark.asyncio
-async def test_execute_agent(execution_engine):
-    """Test executing an agent (non-streaming)."""
-    agent = MockAgent("TestAgent")
-    messages = [
-        create_chat_message("user", "Hello"),
-    ]
-
-    response = await execution_engine.execute_agent(agent, messages)
-
-    assert isinstance(response, AgentResponse)
-    assert len(response.messages) > 0
-    assert response.usage.duration_ms > 0
-    assert response.source == "TestAgent"
-
-
-@pytest.mark.asyncio
-async def test_execute_agent_with_session_id(execution_engine):
-    """Test executing agent with existing session ID."""
-    agent = MockAgent("TestAgent")
-    messages = [create_chat_message("user", "Hello")]
-    session_id = "existing_session"
-
-    response = await execution_engine.execute_agent(agent, messages, session_id)
-
-    assert isinstance(response, AgentResponse)
-    assert response.source == "TestAgent"
+# NOTE: Non-streaming execute_agent method was removed in 0.3.0
+# The API now only supports streaming execution via execute_agent_stream
+# See test_execute_agent_stream for the replacement functionality
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ from picoagents._cancellation_token import CancellationToken
 
 # Additional imports for integration tests
 from picoagents.agents import BaseAgent
+from picoagents.context import AgentContext
 from picoagents.messages import AssistantMessage, Message, ToolMessage, UserMessage
 from picoagents.orchestration import RoundRobinOrchestrator
 from picoagents.termination import (
@@ -398,23 +399,28 @@ class SimpleAgent(BaseAgent):
         task: Union[str, UserMessage, List[Message]],
         cancellation_token: Optional[CancellationToken] = None,
     ) -> AgentResponse:
-        """Return only the user message + one new assistant message."""
-        # Always return exactly one new message (no context duplication)
-        if isinstance(task, list):
-            context_messages = task.copy()
-        elif isinstance(task, str):
-            context_messages = [UserMessage(content=task, source="user")]
-        else:
-            context_messages = [task]
+        """Return response with proper AgentContext."""
+        # Create context with messages (matching real Agent behavior)
+        context = AgentContext()
 
+        # Add input messages to context
+        if isinstance(task, list):
+            for msg in task:
+                context.add_message(msg)
+        elif isinstance(task, str):
+            context.add_message(UserMessage(content=task, source="user"))
+        else:
+            context.add_message(task)
+
+        # Add assistant response
         assistant_message = AssistantMessage(
             content=self.response_text, source=self.name
         )
-        all_messages = context_messages + [assistant_message]
+        context.add_message(assistant_message)
 
         return AgentResponse(
+            context=context,
             source=self.name,
-            messages=all_messages,
             usage=Usage(duration_ms=10, llm_calls=1),
             finish_reason="stop",
         )
@@ -428,15 +434,37 @@ class SimpleAgent(BaseAgent):
     ) -> AsyncGenerator[
         Union[Message, AgentEvent, AgentResponse, ChatCompletionChunk], None
     ]:
-        """Stream the same result as run()."""
-        result = await self.run(task, cancellation_token)
+        """Stream messages with proper AgentContext."""
+        # Create context with messages (matching real Agent behavior)
+        context = AgentContext()
 
-        # Yield each message individually
-        for message in result.messages:
-            yield message
+        # Add input messages to context and yield them
+        if isinstance(task, list):
+            for msg in task:
+                context.add_message(msg)
+                yield msg
+        elif isinstance(task, str):
+            msg = UserMessage(content=task, source="user")
+            context.add_message(msg)
+            yield msg
+        else:
+            context.add_message(task)
+            yield task
 
-        # Yield the final result
-        yield result
+        # Add and yield assistant response
+        assistant_message = AssistantMessage(
+            content=self.response_text, source=self.name
+        )
+        context.add_message(assistant_message)
+        yield assistant_message
+
+        # Yield final response with context
+        yield AgentResponse(
+            context=context,
+            source=self.name,
+            usage=Usage(duration_ms=10, llm_calls=1),
+            finish_reason="stop",
+        )
 
 
 @pytest.mark.asyncio

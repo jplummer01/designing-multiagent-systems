@@ -213,6 +213,8 @@ class TestMemoryTool:
             "insert",
             "delete",
             "rename",
+            "search",  # Added in 0.3.0
+            "append",  # Added in 0.3.0
         }
 
     @pytest.mark.asyncio

@@ -5,6 +5,43 @@ All notable changes to PicoAgents will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-10
+
+### Added
+
+- Model Context Protocol (MCP) integration with complete client implementation
+  - MCP client, configuration, and transport layers
+  - MCP tool wrapper for seamless integration with PicoAgents tools
+  - Examples and comprehensive test coverage
+- Software Engineering (SWE) agent implementation with full documentation
+- Enhanced evaluation framework with comprehensive evaluation system
+  - Expected answer generation utilities
+  - Results tracking and visualization
+  - Updated composite and LLM judges
+- YouTube caption tool for extracting transcripts
+- List memory example demonstrating memory management patterns
+- Context inspector component in Web UI for debugging agent context
+- Message handling and entity execution hooks in Web UI frontend
+- Workflow progress tracking with dedicated test coverage
+- Premium samples collection with documentation
+
+### Changed
+
+- Enhanced research tools with improved capabilities
+- Improved Web UI execution handling and state management
+- Updated agent and orchestration examples with better patterns
+- Refined LLM client implementations (OpenAI and Azure OpenAI) for better error handling
+- Improved workflow runner with enhanced progress reporting
+- Updated evaluation results with new metrics and visualizations
+- Enhanced memory tool with better examples
+
+### Fixed
+
+- Test mocks now properly use AgentContext matching real Agent behavior
+- Web UI frontend dependency updates for security and compatibility
+- Tool initialization and registration improvements
+- Message handling in agent communication
+
 ## [0.2.3] - 2025-10-22
 
 ### Added

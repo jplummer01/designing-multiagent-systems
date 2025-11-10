@@ -11,6 +11,13 @@ from picoagents._middleware import MiddlewareContext
 from picoagents._otel import OTelMiddleware, _is_enabled, auto_instrument
 from picoagents.context import AgentContext
 
+# Check if opentelemetry is available
+try:
+    import opentelemetry  # noqa: F401
+    HAS_OPENTELEMETRY = True
+except ImportError:
+    HAS_OPENTELEMETRY = False
+
 
 class TestOTelConfig:
     """Test OpenTelemetry configuration."""
@@ -104,6 +111,7 @@ class TestAutoInstrumentation:
 class TestIntegration:
     """Integration tests with mock tracer."""
 
+    @pytest.mark.skipif(not HAS_OPENTELEMETRY, reason="opentelemetry package not installed")
     @pytest.mark.asyncio
     async def test_end_to_end_with_mock_tracer(self):
         """Test full middleware flow with mocked OTel."""
