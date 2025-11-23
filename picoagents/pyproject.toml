@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "picoagents"
-version = "0.3.0"
+version = "0.3.1"
 description = "A minimal multi-agent framework for educational purposes"
 readme = "README.md"
 license = "MIT"
@@ -73,6 +73,9 @@ research = [
 mcp = [
     "mcp>=1.0.0",
 ]
+anthropic = [
+    "anthropic>=0.70.0",
+]
 examples = [
     "matplotlib",
     "yfinance",
@@ -84,6 +87,7 @@ all = [
     "picoagents[rag]",
     "picoagents[research]",
     "picoagents[mcp]",
+    "picoagents[anthropic]",
     "picoagents[examples]",
 ]
 

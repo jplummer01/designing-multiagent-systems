@@ -128,6 +128,43 @@ response = await agent.run("What's the weather in Paris?")
 print(response.messages[-1].content)
 ```
 
+### Model Client Setup
+
+PicoAgents supports multiple LLM providers through a unified interface. Each provider requires minimal setup—just API credentials and switching the client class. Chapter 4 covers building custom model clients for any provider.
+
+| Provider | Client Class | Setup | Example | Source |
+|----------|-------------|-------|---------|--------|
+| **OpenAI** | [`OpenAIChatCompletionClient`](picoagents/src/picoagents/llm/_openai.py) | 1. Get API key from [platform.openai.com](https://platform.openai.com)<br>2. `export OPENAI_API_KEY='sk-...'` | [`basic-agent.py`](examples/agents/basic-agent.py) | [`_openai.py`](picoagents/src/picoagents/llm/_openai.py) |
+| **Azure OpenAI** | [`AzureOpenAIChatCompletionClient`](picoagents/src/picoagents/llm/_azure_openai.py) | 1. Deploy model on [Azure Portal](https://portal.azure.com)<br>2. Set endpoint, key, deployment name | [`agent_azure.py`](examples/agents/agent_azure.py) | [`_azure_openai.py`](picoagents/src/picoagents/llm/_azure_openai.py) |
+| **Anthropic** | [`AnthropicChatCompletionClient`](picoagents/src/picoagents/llm/_anthropic.py) | 1. Get API key from [console.anthropic.com](https://console.anthropic.com)<br>2. `export ANTHROPIC_API_KEY='sk-...'` | [`agent_anthropic.py`](examples/agents/agent_anthropic.py) | [`_anthropic.py`](picoagents/src/picoagents/llm/_anthropic.py) |
+| **GitHub Models** | [`OpenAIChatCompletionClient`](picoagents/src/picoagents/llm/_openai.py)<br>+ `base_url` | 1. Get token from [github.com/settings/tokens](https://github.com/settings/tokens)<br>2. `export GITHUB_TOKEN='ghp_...'`<br>3. Set `base_url="https://models.github.ai/inference"` | [`agent_githubmodels.py`](examples/agents/agent_githubmodels.py) | Uses [`_openai.py`](picoagents/src/picoagents/llm/_openai.py) |
+| **Local/Custom** | [`OpenAIChatCompletionClient`](picoagents/src/picoagents/llm/_openai.py)<br>+ `base_url` | Point to any OpenAI-compatible endpoint<br>(Ollama, LM Studio, vLLM, etc.) | Use `base_url="http://localhost:8000"` | Uses [`_openai.py`](picoagents/src/picoagents/llm/_openai.py) |
+
+**Quick Examples:**
+
+```python
+# OpenAI (default)
+from picoagents import OpenAIChatCompletionClient
+client = OpenAIChatCompletionClient(model="gpt-4.1-mini")
+
+# Anthropic
+from picoagents import AnthropicChatCompletionClient
+client = AnthropicChatCompletionClient(model="claude-3-5-sonnet-20241022")
+
+# GitHub Models (free tier)
+client = OpenAIChatCompletionClient(
+    model="openai/gpt-4.1-mini",
+    api_key=os.getenv("GITHUB_TOKEN"),
+    base_url="https://models.github.ai/inference"
+)
+
+# Local LLM (e.g., Ollama)
+client = OpenAIChatCompletionClient(
+    model="llama3.2",
+    base_url="http://localhost:11434/v1"
+)
+```
+
 ### Launch the Web UI
 
 ![PicoAgents Web UI](./docs/images/picoagents_screenshot.png)

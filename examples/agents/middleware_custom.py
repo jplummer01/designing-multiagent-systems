@@ -124,7 +124,7 @@ class SecurityMiddleware(BaseMiddleware):
 
         return filtered_content
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(self, context: MiddlewareContext):
         """Apply security checks before operations."""
 
         # Maintenance mode check
@@ -151,19 +151,21 @@ class SecurityMiddleware(BaseMiddleware):
         logger.info(
             f"🛡️  Security check passed for {context.operation} (user: {user_id})"
         )
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
+    async def process_response(self, context: MiddlewareContext, result: Any):
         """No response filtering needed for this example."""
-        return result
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ):
         """Log security events."""
         if "🚫" in str(error):
             user_id = context.agent_context.metadata.get("user_id", "anonymous")
             logger.warning(f"Security block for user {user_id}: {error}")
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -271,19 +273,21 @@ class ContextManagementMiddleware(BaseMiddleware):
 
         return result
 
-    async def process_request(self, context: MiddlewareContext) -> MiddlewareContext:
+    async def process_request(self, context: MiddlewareContext):
         """Apply intelligent context management."""
         if context.operation == "model_call" and isinstance(context.data, list):
             context.data = self._trim_context_intelligently(context.data)
 
-        return context
+        yield context
 
-    async def process_response(self, context: MiddlewareContext, result: Any) -> Any:
-        return result
+    async def process_response(self, context: MiddlewareContext, result: Any):
+        yield result
 
     async def process_error(
         self, context: MiddlewareContext, error: Exception
-    ) -> Optional[Any]:
+    ):
+        if False:  # Type checker hint
+            yield
         raise error
 
 
@@ -391,8 +395,9 @@ class ObservabilityMiddleware(BaseMiddleware):
         error_msg = str(error)[:100] + "..." if len(str(error)) > 100 else str(error)
         logger.error(f"❌ Failed {context.operation} after {duration:.3f}s: {error_msg}")
 
+        if False:  # Type checker hint
+            yield
         raise error
-        yield  # pragma: no cover
 
 
 # =============================================================================

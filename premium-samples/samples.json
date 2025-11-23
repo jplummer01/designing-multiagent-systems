@@ -19,9 +19,9 @@
         "deployment": ["Docker", "Docker Compose"]
       },
       "features": [
-        "4-stage workflow: Load → Filter → Classify → Analyze",
-        "90% cost reduction through two-stage filtering",
-        "Real-time streaming with Server-Sent Events",
+        "Demonstrates a 4-stage workflow pattern: Load → Filter → Classify → Analyze",
+        "Demonstrates cost reduction approaches with 2-stage filtering",
+        "UI integration showing Real-time streaming with Server-Sent Events",
         "Interactive results dashboard with metrics visualization",
         "Historical runs gallery and comparison",
         "Checkpointing and resume capability",

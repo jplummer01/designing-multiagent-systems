@@ -72,7 +72,8 @@ class MockChatCompletionClient(BaseChatCompletionClient):
         from picoagents.types import ChatCompletionChunk
 
         yield ChatCompletionChunk(
-            content=result.message.content or "", is_complete=True, tool_call_chunk=None
+            content=result.message.content or "", is_complete=True, tool_call_chunk=None,
+            usage=result.usage
         )
 
 

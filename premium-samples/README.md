@@ -1,26 +1,23 @@
 # Premium Code Samples
 
-Production-ready, end-to-end applications demonstrating advanced multi-agent patterns from "Designing Multi-Agent Systems".
+Complete applications demonstrating multi-agent patterns from "Designing Multi-Agent Systems".
 
 ## What Are Premium Samples?
 
-These are **complete, deployable applications** that showcase real-world multi-agent systems. Unlike simple code snippets, each sample includes:
+These are deployable applications that show how to build multi-agent systems. Each sample includes:
 
-- Full-stack implementation (backend + frontend)
-- Production-ready architecture
-- Docker deployment configuration
-- Comprehensive documentation
-- Cost optimization strategies
-- Professional UI/UX
-- Real-time progress monitoring
+- Backend and frontend source code
+- Docker configuration
+- Setup instructions
+- Documentation
 
 ## Access
 
-Premium samples are **exclusively available** to Professional tier book bundle purchasers.
+Premium samples are available to Professional tier book bundle purchasers.
 
 **[Purchase Professional Bundle →](https://buy.multiagentbook.com)**
 
-Already purchased? **[Access your samples in the dashboard →](https://buy.multiagentbook.com/dashboard)**
+Already purchased? Sign in at [buy.multiagentbook.com](https://buy.multiagentbook.com) to access your dashboard.
 
 ---
 
@@ -30,29 +27,28 @@ Already purchased? **[Access your samples in the dashboard →](https://buy.mult
 
 ![YC Analysis App](yc-analysis-app/screenshot.jpg)
 
-**Analyze thousands of Y Combinator companies to identify AI agent trends**
+Analyzes 5,622 Y Combinator companies to identify AI agent trends. Uses a 4-stage workflow with filtering to reduce API costs by 90%.
 
-A production application demonstrating how to build cost-effective multi-agent workflows for analyzing large datasets. Features a 4-stage workflow with intelligent filtering that achieves 90% cost reduction.
-
-**What You'll Learn:**
+**Topics covered:**
 - Multi-stage workflow orchestration
-- Cost optimization through two-stage filtering
+- Cost optimization through filtering
 - Real-time streaming with Server-Sent Events
-- Event-driven architecture patterns
-- Production deployment with Docker
+- Event-driven architecture
+- Docker deployment
 
 **Tech Stack:**
 - Backend: FastAPI, PicoAgents, Python 3.11+
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS v4
 - Deployment: Docker, Docker Compose
 
-**Key Features:**
-- 4-stage workflow: Load → Filter → Classify → Analyze
-- Real-time progress streaming
-- Interactive results dashboard
-- Historical runs gallery
-- Checkpointing and resume
-- 5-minute setup time
+**Features:**
+- Demonstrates a 4-stage workflow pattern: Load → Filter → Classify → Analyze
+- Demonstrates cost reduction approaches with 2-stage filtering
+- UI integration showing Real-time streaming with Server-Sent Events
+- Interactive results dashboard with metrics visualization
+- Historical runs gallery and comparison
+- Checkpointing and resume capability
+- Docker deployment with unified container
 
 **Cost Estimates:**
 - 100 companies: ~$0.30
@@ -83,9 +79,9 @@ Premium samples are included with the Professional tier book bundle ($149).
 [Purchase Now →](https://buy.multiagentbook.com)
 
 ### 2. Download
-Access your purchased samples from the customer dashboard:
-
-[Dashboard →](https://buy.multiagentbook.com/dashboard)
+1. Go to [buy.multiagentbook.com](https://buy.multiagentbook.com)
+2. Click "Sign In" (top right)
+3. Sign in to view your dashboard and download samples
 
 ### 3. Run
 Each sample includes a quick-start guide for Docker deployment:

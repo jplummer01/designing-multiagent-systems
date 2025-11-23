@@ -201,7 +201,12 @@ Run the tests to ensure everything works.
 
     print("\n" + "-" * 70)
     print("TASK 1 COMPLETE")
-    print(f"Final message: {response1.context.messages[-1].content if response1.context.messages else 'No messages'}")
+    final_msg = (
+        response1.context.messages[-1].content
+        if response1.context and response1.context.messages
+        else "No messages"
+    )
+    print(f"Final message: {final_msg}")
     print(f"Usage: {response1.usage}")
     print("-" * 70)
 
@@ -225,7 +230,12 @@ Note: Check if there are any patterns or decisions from the previous task that m
 
     print("\n" + "-" * 70)
     print("TASK 2 COMPLETE")
-    print(f"Final message: {response2.context.messages[-1].content if response2.context.messages else 'No messages'}")
+    final_msg = (
+        response2.context.messages[-1].content
+        if response2.context and response2.context.messages
+        else "No messages"
+    )
+    print(f"Final message: {final_msg}")
     print(f"Usage: {response2.usage}")
     print("-" * 70)
 
@@ -250,7 +260,12 @@ Check your memory for any documentation patterns or conventions.
 
     print("\n" + "-" * 70)
     print("TASK 3 COMPLETE")
-    print(f"Final message: {response3.context.messages[-1].content if response3.context.messages else 'No messages'}")
+    final_msg = (
+        response3.context.messages[-1].content
+        if response3.context and response3.context.messages
+        else "No messages"
+    )
+    print(f"Final message: {final_msg}")
     print(f"Usage: {response3.usage}")
     print("-" * 70)
 

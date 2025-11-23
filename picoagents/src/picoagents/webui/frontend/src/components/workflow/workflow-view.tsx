@@ -78,35 +78,58 @@ export function WorkflowView({
       )) {
         onDebugEvent(event);
 
-        // Handle workflow events
-        if (event.type === "workflow_started") {
+        // Handle workflow events - using actual WorkflowRunner event types
+        // The API client normalizes events: type = event_type, data = full WorkflowEvent
+        const workflowEvent = event.data;
+        const eventType = event.type; // API client already extracts event_type to type
+
+        if (eventType === "workflow_started") {
           setExecutionState(prev => ({
             ...prev,
             status: "running",
           }));
-        } else if (event.type === "executor_invoke") {
+        } else if (eventType === "step_started") {
           setExecutionState(prev => ({
             ...prev,
-            current_step: event.data?.executor_id,
+            current_step: workflowEvent?.step_id || "unknown",
           }));
-        } else if (event.type === "executor_result") {
+        } else if (eventType === "step_completed") {
           setExecutionState(prev => ({
             ...prev,
-            steps_completed: [...prev.steps_completed, event.data?.executor_id || "unknown"],
+            steps_completed: [...prev.steps_completed, workflowEvent?.step_id || "unknown"],
+            current_step: undefined, // Clear current step when completed
           }));
-        } else if (event.type === "workflow_completed") {
-          setExecutionState(prev => ({
-            ...prev,
-            status: "completed",
-          }));
-          setResult(event.data);
-        } else if (event.type === "workflow_error") {
+        } else if (eventType === "step_failed") {
           setExecutionState(prev => ({
             ...prev,
             status: "failed",
-            error: event.data?.error || "Unknown error",
+            error: workflowEvent?.error || "Step execution failed",
           }));
-          setError(event.data?.error || "Workflow execution failed");
+          setError(workflowEvent?.error || "Step execution failed");
+        } else if (eventType === "workflow_completed") {
+          setExecutionState(prev => ({
+            ...prev,
+            status: "completed",
+            current_step: undefined,
+          }));
+          // Extract the final output from the execution
+          const execution = workflowEvent?.execution;
+          const finalOutput = execution?.step_executions?.[execution?.step_executions?.length - 1]?.output;
+          setResult(finalOutput || workflowEvent);
+        } else if (eventType === "workflow_failed") {
+          setExecutionState(prev => ({
+            ...prev,
+            status: "failed",
+            error: workflowEvent?.error || "Workflow execution failed",
+          }));
+          setError(workflowEvent?.error || "Workflow execution failed");
+        } else if (eventType === "workflow_cancelled") {
+          setExecutionState(prev => ({
+            ...prev,
+            status: "failed",
+            error: workflowEvent?.reason || "Workflow was cancelled",
+          }));
+          setError(workflowEvent?.reason || "Workflow was cancelled");
         }
       }
     } catch (err) {

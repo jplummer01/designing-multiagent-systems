@@ -41,14 +41,16 @@ class SecurityMiddleware(BaseMiddleware):
                         if re.search(pattern, message.content, re.IGNORECASE):
                             # Block the operation entirely - never reaches model or logs
                             raise ValueError(f"Blocked potentially malicious input")
-        return context
+        yield context
 
     async def process_response(self, context, result):
         """No response processing needed."""
-        return result
+        yield result
 
     async def process_error(self, context, error):
         """No error recovery."""
+        if False:  # Type checker hint
+            yield
         raise error
 
 

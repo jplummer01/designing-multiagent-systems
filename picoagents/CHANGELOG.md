@@ -5,6 +5,28 @@ All notable changes to PicoAgents will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-11-23
+
+### Added
+
+- Anthropic Claude model client with full API support
+- GitHub Models integration example
+- Agent-as-tool result strategies for flexible output handling
+- Context engineering examples
+
+### Changed
+
+- Updated model client tests for better coverage and reliability
+- Improved workflow integration tests with proper Pydantic model handling
+- Enhanced WebUI workflow view components
+
+### Fixed
+
+- Fixed Anthropic model name in tests (claude-3-5-haiku-20241022)
+- Fixed CancellationToken import path in workflow tests
+- Fixed workflow step progress events test with correct function signatures
+- Updated OpenAI test to use gpt-4.1-mini model
+
 ## [0.3.0] - 2025-11-10
 
 ### Added

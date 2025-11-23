@@ -411,118 +411,152 @@ def create_visualizations(results_df: pd.DataFrame, output_dir: Path):
     SECONDARY_COLOR = "#323E50"
     COLORS = [PRIMARY_COLOR, SECONDARY_COLOR, '#7B7FE8', '#4A5568']
 
-    # Check if we have multiple suites for category breakdown
-    has_categories = len(results_df['suite'].unique()) > 1
+    # Configuration name mappings for shorter labels
+    CONFIG_SHORT_NAMES = {
+        'Direct-Model': 'Direct\nModel',
+        'Single-Agent-Tools': 'Single\nAgent',
+        'Multi-Agent-RoundRobin': 'Multi-Agent\nRoundRobin',
+        'Multi-Agent-AI': 'Multi-Agent\nAI'
+    }
 
-    if not has_categories:
-        # Simple 1x2 layout for quick tests
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-        fig.suptitle("Multi-Agent System Evaluation Results", fontsize=14, fontweight="bold", y=0.98)
+    # 3-chart layout: 2 on top, 1 full-width on bottom
+    fig = plt.figure(figsize=(16, 12))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1], hspace=0.35, wspace=0.3)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])  # Full width bottom chart
+    fig.suptitle("Multi-Agent System Evaluation Results", fontsize=18, fontweight="bold", y=0.98)
 
-        summary = results_df.groupby("configuration").agg({"overall_score": "mean", "tokens_total": "mean"}).round(2)
-        configs = summary.index.tolist()
-        scores = summary["overall_score"].tolist()
+    # Aggregate by configuration
+    summary = results_df.groupby("configuration").agg({"overall_score": "mean"}).round(2)
+    configs = summary.index.tolist()
+    scores = summary["overall_score"].tolist()
 
-        bars1 = ax1.barh(configs, scores, color=PRIMARY_COLOR, alpha=0.7)
-        for bar, score in zip(bars1, scores):
-            ax1.text(score + 0.1, bar.get_y() + bar.get_height() / 2, f"{score:.1f}/10", va="center", fontweight="bold")
+    # TOP-LEFT: Overall Performance with multiline y-axis labels
+    bars1 = ax1.barh(configs, scores, color=PRIMARY_COLOR, alpha=0.8)
+    for bar, score in zip(bars1, scores):
+        ax1.text(score + 0.15, bar.get_y() + bar.get_height() / 2, f"{score:.1f}/10",
+                va="center", fontweight="bold", fontsize=11)
+    ax1.set_xlabel("Average Score (0-10)", fontweight="bold", fontsize=12)
+    ax1.set_title("Overall Performance", fontweight="bold", pad=15, fontsize=14)
+    ax1.set_xlim(0, 10.5)
+    ax1.grid(axis="x", alpha=0.3)
+    # Use shorter multiline labels for y-axis
+    ax1.set_yticklabels([CONFIG_SHORT_NAMES.get(c, c) for c in configs], fontsize=10)
 
-        ax1.set_xlabel("Average Score (0-10)", fontweight="bold")
-        ax1.set_title("Overall Performance", fontweight="bold", pad=15)
-        ax1.set_xlim(0, 10)
-        ax1.grid(axis="x", alpha=0.3)
+    # Order suites by Direct-Model score (easy = high, hard = low)
+    suite_difficulty = results_df[results_df['configuration'] == 'Direct-Model'].groupby('suite')['overall_score'].mean().sort_values(ascending=False)
+    ordered_suites = suite_difficulty.index.tolist()
 
-        tokens = summary["tokens_total"].tolist()
-        bars2 = ax2.barh(configs, tokens, color=SECONDARY_COLOR, alpha=0.7)
-        ax2.set_xlabel("Average Token Usage", fontweight="bold")
-        ax2.set_title("Resource Usage", fontweight="bold", pad=15)
-        ax2.grid(axis="x", alpha=0.3)
-    else:
-        # 2x2 layout for comprehensive tests
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle("Multi-Agent System Evaluation Results", fontsize=16, fontweight="bold", y=0.98)
+    # TOP-RIGHT: Token Efficiency Per Task (Score per 1000 tokens, only for successful tasks)
+    efficiency_data = []
+    for suite in ordered_suites:
+        suite_data = results_df[results_df['suite'] == suite]
+        for config in configs:
+            config_data = suite_data[suite_data['configuration'] == config]
+            # Only count successful tasks (score >= 7.0)
+            successful = config_data[config_data['overall_score'] >= 7.0]
+            if len(successful) > 0:
+                avg_score = successful['overall_score'].mean()
+                avg_tokens = successful['tokens_total'].mean()
+                efficiency = (avg_score / (avg_tokens / 1000)) if avg_tokens > 0 else 0
+                efficiency_data.append({'suite': suite, 'config': config, 'efficiency': efficiency})
 
-        # Aggregate by configuration
-        summary = results_df.groupby("configuration").agg({"overall_score": "mean"}).round(2)
-        configs = summary.index.tolist()
-        scores = summary["overall_score"].tolist()
+    # Plot as grouped bar chart with value labels
+    eff_df = pd.DataFrame(efficiency_data)
+    suite_names = ordered_suites
+    x_eff = np.arange(len(suite_names))
+    width_eff = 0.2
 
-        # TOP-LEFT: Overall Performance
-        bars1 = ax1.barh(configs, scores, color=PRIMARY_COLOR, alpha=0.8)
-        for bar, score in zip(bars1, scores):
-            ax1.text(score + 0.15, bar.get_y() + bar.get_height() / 2, f"{score:.1f}/10", va="center", fontweight="bold")
-        ax1.set_xlabel("Average Score (0-10)", fontweight="bold")
-        ax1.set_title("Overall Performance", fontweight="bold", pad=15, fontsize=13)
-        ax1.set_xlim(0, 10.5)
-        ax1.grid(axis="x", alpha=0.3)
+    for i, config in enumerate(configs):
+        config_eff = [eff_df[(eff_df['suite'] == suite) & (eff_df['config'] == config)]['efficiency'].values[0]
+                     if len(eff_df[(eff_df['suite'] == suite) & (eff_df['config'] == config)]) > 0 else 0
+                     for suite in suite_names]
+        bars = ax2.bar([xi + i * width_eff for xi in x_eff], config_eff, width_eff,
+               label=CONFIG_SHORT_NAMES.get(config, config), color=COLORS[i % len(COLORS)], alpha=0.8)
 
-        # TOP-RIGHT: Performance Gap (vs Direct-Model baseline)
-        baseline_score = summary.loc["Direct-Model", "overall_score"] if "Direct-Model" in configs else scores[0]
-        gaps = [score - baseline_score for score in scores]
-        colors_gap = [PRIMARY_COLOR if g >= 0 else '#E53E3E' for g in gaps]
+        # Add value labels on top of bars for better readability
+        for j, (bar, val) in enumerate(zip(bars, config_eff)):
+            if val > 1:  # Only show labels for visible bars
+                ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                        f'{val:.0f}', ha='center', va='bottom', fontsize=8, rotation=0)
 
-        bars2 = ax2.barh(configs, gaps, color=colors_gap, alpha=0.8)
-        for bar, gap in zip(bars2, gaps):
-            x_pos = gap + (0.1 if gap >= 0 else -0.1)
-            ax2.text(x_pos, bar.get_y() + bar.get_height() / 2, f"{gap:+.1f}", va="center", ha='left' if gap >= 0 else 'right', fontweight="bold")
-        ax2.axvline(0, color='black', linewidth=1, linestyle='--', alpha=0.5)
-        ax2.set_xlabel("Score Difference vs Direct-Model", fontweight="bold")
-        ax2.set_title("Performance Gap", fontweight="bold", pad=15, fontsize=13)
-        ax2.grid(axis="x", alpha=0.3)
+    ax2.set_xlabel("Task Category", fontweight="bold", fontsize=12)
+    ax2.set_ylabel("Score per 1K Tokens\n(Successful Tasks Only)", fontweight="bold", fontsize=11)
+    ax2.set_title("Token Efficiency by Task", fontweight="bold", pad=15, fontsize=14)
+    ax2.set_xticks([xi + width_eff * 1.5 for xi in x_eff])
+    ax2.set_xticklabels(suite_names, rotation=0, ha='center', fontsize=11)
+    ax2.legend(loc='upper right', fontsize=9, framealpha=0.95)
+    ax2.grid(axis="y", alpha=0.3)
 
-        # BOTTOM-LEFT: By Task Difficulty (ordered easy→hard)
-        # Order suites by Direct-Model score (easy = high score, hard = low score)
-        suite_difficulty = results_df[results_df['configuration'] == 'Direct-Model'].groupby('suite')['overall_score'].mean().sort_values(ascending=False)
-        ordered_suites = suite_difficulty.index.tolist()
+    # BOTTOM: Full-width individual task performance chart
+    # Get all unique tasks across all suites
+    task_data = []
+    for _, row in results_df.iterrows():
+        task_data.append({
+            'task': row['task'],
+            'suite': row['suite'],
+            'config': row['configuration'],
+            'score': row['overall_score']
+        })
 
-        category_perf = results_df.groupby(['suite', 'configuration'])['overall_score'].mean().unstack()
-        category_perf = category_perf.reindex(ordered_suites)
+    task_df = pd.DataFrame(task_data)
 
-        x = range(len(ordered_suites))
-        width = 0.2
-        for i, config in enumerate(configs):
-            values = [category_perf.loc[suite, config] for suite in ordered_suites]
-            ax3.bar([xi + i * width for xi in x], values, width, label=config, color=COLORS[i % len(COLORS)], alpha=0.8)
+    # Group tasks by suite and calculate average per config
+    task_scores = task_df.groupby(['suite', 'task', 'config'])['score'].mean().reset_index()
 
-        ax3.set_xlabel("Task Category (Easy → Hard)", fontweight="bold")
-        ax3.set_ylabel("Score (0-10)", fontweight="bold")
-        ax3.set_title("Performance by Task Difficulty", fontweight="bold", pad=15, fontsize=13)
-        ax3.set_xticks([xi + width * 1.5 for xi in x])
-        ax3.set_xticklabels(ordered_suites, rotation=15, ha='right')
-        ax3.legend(loc='lower left', fontsize=8)
-        ax3.grid(axis="y", alpha=0.3)
-        ax3.set_ylim(0, 10.5)
+    # Get unique tasks per suite (in order)
+    suite_tasks = []
+    for suite in ordered_suites:
+        suite_data = task_scores[task_scores['suite'] == suite]
+        tasks = suite_data['task'].unique().tolist()
+        suite_tasks.extend([(suite, task) for task in tasks])
 
-        # BOTTOM-RIGHT: Dimension Breakdown Heatmap
-        # Prepare data: configs × (dimensions × suites)
-        dimension_cols = ['accuracy', 'completeness', 'helpfulness', 'clarity']
-        available_dims = [d for d in dimension_cols if d in results_df.columns]
+    # Create grouped bar chart
+    x_pos = np.arange(len(suite_tasks))
+    width = 0.2
 
-        heatmap_data = []
-        labels = []
-        for suite in ordered_suites:
-            for dim in available_dims:
-                suite_dim_data = results_df[results_df['suite'] == suite].groupby('configuration')[dim].mean()
-                heatmap_data.append(suite_dim_data.reindex(configs).values)
-                labels.append(f"{suite[:3]}-{dim[:3]}")
+    for i, config in enumerate(configs):
+        config_scores = []
+        for suite, task in suite_tasks:
+            score_val = task_scores[
+                (task_scores['suite'] == suite) &
+                (task_scores['task'] == task) &
+                (task_scores['config'] == config)
+            ]['score']
+            config_scores.append(score_val.values[0] if len(score_val) > 0 else 0)
 
-        heatmap_array = np.array(heatmap_data).T
-        im = ax4.imshow(heatmap_array, cmap='RdYlGn', aspect='auto', vmin=0, vmax=10)
+        ax3.bar([x + i * width for x in x_pos], config_scores, width,
+               label=CONFIG_SHORT_NAMES.get(config, config), color=COLORS[i % len(COLORS)], alpha=0.8)
 
-        ax4.set_xticks(range(len(labels)))
-        ax4.set_xticklabels(labels, rotation=90, ha='right', fontsize=8)
-        ax4.set_yticks(range(len(configs)))
-        ax4.set_yticklabels(configs, fontsize=9)
-        ax4.set_title("Dimension Breakdown Heatmap", fontweight="bold", pad=15, fontsize=13)
+    # Format x-axis labels - horizontal and multiline for readability
+    task_labels = []
+    for suite, task in suite_tasks:
+        # Split long task names into multiple lines
+        if len(task) > 20:
+            words = task.split()
+            line1 = ' '.join(words[:len(words)//2])
+            line2 = ' '.join(words[len(words)//2:])
+            task_labels.append(f"{line1}\n{line2}")
+        else:
+            task_labels.append(task)
 
-        # Add colorbar
-        cbar = plt.colorbar(im, ax=ax4, fraction=0.046, pad=0.04)
-        cbar.set_label('Score', rotation=270, labelpad=15, fontweight="bold")
+    ax3.set_xticks([x + width * 1.5 for x in x_pos])
+    ax3.set_xticklabels(task_labels, rotation=0, ha='center', fontsize=10)
+    ax3.set_ylabel("Score (0-10)", fontweight="bold", fontsize=13)
+    ax3.set_xlabel("Individual Tasks (Grouped by Category)", fontweight="bold", fontsize=13)
+    ax3.set_title("Performance by Individual Task", fontweight="bold", pad=15, fontsize=15)
+    # Move legend to lower right with bigger font
+    ax3.legend(loc='lower right', fontsize=11, framealpha=0.95, ncol=2)
+    ax3.grid(axis="y", alpha=0.3, linestyle='--')
+    ax3.set_ylim(0, 10.5)
 
-        # Add text annotations for key values
-        for i in range(len(configs)):
-            for j in range(len(labels)):
-                text = ax4.text(j, i, f'{heatmap_array[i, j]:.1f}', ha="center", va="center", color="black", fontsize=7)
+    # Add subtle vertical lines to separate suites
+    current_pos = 0
+    for suite in ordered_suites[:-1]:
+        suite_count = len([s for s, t in suite_tasks if s == suite])
+        current_pos += suite_count
+        ax3.axvline(x=current_pos - 0.5, color='gray', linestyle=':', alpha=0.4, linewidth=1)
 
     plt.tight_layout()
     output_path = output_dir / "evaluation_results.png"

@@ -159,18 +159,40 @@ export interface SessionContext {
 
 // Streaming Event Types
 export interface StreamEvent {
-  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "tool_approval" | "thinking" | "error" | "usage" | "complete" | "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error" | "task_start" | "task_complete" | "model_call" | "model_response" | "orchestration_start" | "orchestration_complete" | "agent_selection" | "agent_execution_start" | "agent_execution_complete" | "unknown";
+  type: "message" | "token_chunk" | "tool_call" | "tool_result" | "tool_approval" | "thinking" | "error" | "usage" | "complete" |
+        // Workflow events (actual from WorkflowRunner)
+        "workflow_started" | "workflow_completed" | "workflow_failed" | "workflow_cancelled" | "workflow_resumed" |
+        "step_started" | "step_completed" | "step_failed" | "step_progress" |
+        "edge_activated" | "checkpoint_saved" |
+        // Agent/Orchestrator events
+        "task_start" | "task_complete" | "model_call" | "model_response" | "orchestration_start" | "orchestration_complete" |
+        "agent_selection" | "agent_execution_start" | "agent_execution_complete" | "unknown";
   data: any;
   session_id?: string;
   timestamp: string;
 }
 
-// Workflow Execution Types
+// Workflow Execution Types (actual from WorkflowRunner)
 export interface WorkflowEvent {
-  type: "workflow_started" | "workflow_completed" | "executor_invoke" | "executor_result" | "workflow_error";
+  event_type: "workflow_started" | "workflow_completed" | "workflow_failed" | "workflow_cancelled" |
+              "workflow_resumed" | "checkpoint_saved" |
+              "step_started" | "step_completed" | "step_failed" | "step_progress" | "edge_activated";
+  timestamp: string;
+  workflow_id: string;
+  // Step-specific fields
+  step_id?: string;
+  input_data?: any;
+  output_data?: any;
+  duration_seconds?: number;
+  error?: string;
+  message?: string;
+  // Workflow-specific fields
+  initial_input?: any;
+  execution?: any;
+  // Edge-specific fields
+  from_step?: string;
+  to_step?: string;
   data?: any;
-  executor_id?: string;
-  timestamp?: string;
 }
 
 export interface WorkflowExecutionState {

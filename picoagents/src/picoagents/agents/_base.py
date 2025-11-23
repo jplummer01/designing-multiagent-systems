@@ -353,7 +353,11 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
             ],
         }
 
-    def as_tool(self, task_parameter_name: str = "task") -> "AgentAsTool":
+    def as_tool(
+        self,
+        task_parameter_name: str = "task",
+        result_strategy: "Union[str, Callable[[List[Message]], str]]" = "last",
+    ) -> "AgentAsTool":
         """
         Convert this agent into a tool that other agents can use.
 
@@ -362,13 +366,26 @@ class BaseAgent(ComponentBase[BaseModel], ABC):
 
         Args:
             task_parameter_name: Parameter name for the task input (default: "task")
+            result_strategy: Strategy for extracting result from messages.
+                Can be "last" (default), "last:N", "all", or a callable that takes
+                a list of messages and returns a string.
 
         Returns:
             AgentAsTool instance wrapping this agent
+
+        Examples:
+            >>> # Use last message only (default)
+            >>> tool = agent.as_tool()
+            >>>
+            >>> # Use last 3 messages
+            >>> tool = agent.as_tool(result_strategy="last:3")
+            >>>
+            >>> # Custom extraction
+            >>> tool = agent.as_tool(result_strategy=lambda msgs: "\\n".join(m.content for m in msgs))
         """
         from ._agent_as_tool import AgentAsTool
 
-        return AgentAsTool(self, task_parameter_name)
+        return AgentAsTool(self, task_parameter_name, result_strategy)
 
     def __str__(self) -> str:
         """String representation of the agent."""

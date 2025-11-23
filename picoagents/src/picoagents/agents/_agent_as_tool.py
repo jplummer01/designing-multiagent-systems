@@ -5,8 +5,8 @@ This module provides the AgentAsTool class that wraps BaseAgent instances,
 exposing them as BaseTool instances for composition patterns.
 """
 
-from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from collections.abc import AsyncGenerator, Callable
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from .._cancellation_token import CancellationToken
 from ..messages import Message
@@ -16,6 +16,8 @@ from ..types import AgentEvent, AgentResponse, ToolResult
 if TYPE_CHECKING:
     from ._base import BaseAgent
 
+ResultStrategy = Union[str, Callable[[List[Message]], str]]
+
 
 class AgentAsTool(BaseTool):
     """
@@ -23,15 +25,44 @@ class AgentAsTool(BaseTool):
 
     This enables hierarchical composition where specialized agents can be
     used as tools by higher-level coordinating agents.
+
+    The result_strategy parameter controls how agent messages are summarized:
+    - "last" (default): Return only the last message
+    - "last:N": Return the last N messages concatenated
+    - "all": Return all messages concatenated
+    - Callable: Custom function that takes messages and returns a string
     """
 
-    def __init__(self, agent: "BaseAgent", task_parameter_name: str = "task"):
+    def __init__(
+        self,
+        agent: "BaseAgent",
+        task_parameter_name: str = "task",
+        result_strategy: ResultStrategy = "last",
+    ):
         """
         Initialize the agent-as-tool wrapper.
 
         Args:
             agent: The agent to wrap as a tool
             task_parameter_name: Parameter name for the task input
+            result_strategy: Strategy for extracting result from messages.
+                Can be "last", "last:N", "all", or a callable that takes
+                a list of messages and returns a string.
+
+        Examples:
+            >>> # Use last message only (default)
+            >>> tool = AgentAsTool(agent)
+            >>>
+            >>> # Use last 3 messages
+            >>> tool = AgentAsTool(agent, result_strategy="last:3")
+            >>>
+            >>> # Use all messages
+            >>> tool = AgentAsTool(agent, result_strategy="all")
+            >>>
+            >>> # Custom extraction logic
+            >>> def extract_assistant_messages(messages):
+            ...     return "\\n".join(m.content for m in messages if m.role == "assistant")
+            >>> tool = AgentAsTool(agent, result_strategy=extract_assistant_messages)
         """
         from ._base import BaseAgent
 
@@ -42,6 +73,70 @@ class AgentAsTool(BaseTool):
 
         self.agent = agent
         self.task_parameter_name = task_parameter_name
+        self.result_strategy = result_strategy
+        self._validate_result_strategy()
+
+    def _validate_result_strategy(self) -> None:
+        """Validate that the result_strategy is properly formatted."""
+        if callable(self.result_strategy):
+            return
+
+        if not isinstance(self.result_strategy, str):
+            raise TypeError("result_strategy must be a string or callable")
+
+        # Validate string strategies
+        if self.result_strategy == "all" or self.result_strategy == "last":
+            return
+
+        # Validate "last:N" format
+        if self.result_strategy.startswith("last:"):
+            try:
+                n = int(self.result_strategy.split(":")[1])
+                if n <= 0:
+                    raise ValueError("N must be positive in 'last:N' strategy")
+            except (IndexError, ValueError) as e:
+                raise ValueError(
+                    f"Invalid result_strategy format: {self.result_strategy}. "
+                    "Expected 'last:N' where N is a positive integer"
+                ) from e
+        else:
+            raise ValueError(
+                f"Unknown result_strategy: {self.result_strategy}. "
+                "Expected 'last', 'last:N', 'all', or a callable"
+            )
+
+    def _extract_result(self, messages: List[Message]) -> str:
+        """
+        Extract result from messages based on the configured strategy.
+
+        Args:
+            messages: List of messages from the agent
+
+        Returns:
+            Extracted result string
+        """
+        if not messages:
+            return ""
+
+        # Custom callable strategy
+        if callable(self.result_strategy):
+            return self.result_strategy(messages)
+
+        # String-based strategies
+        if self.result_strategy == "last":
+            return messages[-1].content
+
+        if self.result_strategy == "all":
+            return "\n".join(msg.content for msg in messages)
+
+        # "last:N" strategy
+        if self.result_strategy.startswith("last:"):
+            n = int(self.result_strategy.split(":")[1])
+            selected = messages[-n:]
+            return "\n".join(msg.content for msg in selected)
+
+        # Should never reach here due to validation
+        return messages[-1].content
 
     @property
     def parameters(self) -> Dict[str, Any]:
@@ -77,10 +172,8 @@ class AgentAsTool(BaseTool):
         try:
             response = await self.agent.run(task=task, context=None, cancellation_token=None)
 
-            # Extract final message content
-            final_content = ""
-            if response.messages:
-                final_content = response.messages[-1].content
+            # Extract content using configured strategy
+            final_content = self._extract_result(response.messages)
 
             return ToolResult(
                 success=True,
@@ -150,9 +243,10 @@ class AgentAsTool(BaseTool):
                 metadata={"agent_name": self.agent.name},
             )
         else:
+            # Extract content using configured strategy
             final_content = ""
             if final_response and final_response.messages:
-                final_content = final_response.messages[-1].content
+                final_content = self._extract_result(final_response.messages)
 
             yield ToolResult(
                 success=True,

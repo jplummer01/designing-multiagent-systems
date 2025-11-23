@@ -56,15 +56,24 @@ print(f"Created specialist agents: {weather_agent.name}, {analysis_agent.name}")
 
 
 # Create coordinator that uses both specialists as tools
+# Note: You can control how results are extracted using result_strategy:
+# - "last" (default): Returns only the final message
+# - "last:N": Returns last N messages concatenated
+# - "all": Returns all messages
+# - Custom callable: Function that processes messages and returns a string
 agent = Agent(
     name="research_coordinator",
     description="Coordinates research tasks using specialist agents",
     instructions="You solve tasks by delegating to the relevant agents or tools",
     model_client=model_client,
-    tools=[weather_agent.as_tool(), analysis_agent.as_tool()],
+    tools=[
+        weather_agent.as_tool(),  # Default: last message only
+        analysis_agent.as_tool(result_strategy="last:2"),  # Last 2 messages
+    ],
     example_tasks=[
         "Get the current weather in New York and analyze recent sales data.",
-        "Provide a brief report on the weather in San Francisco and its impact on outdoor events.",]
+        "Provide a brief report on the weather in San Francisco and its impact on outdoor events.",
+    ],
 )
 
 
