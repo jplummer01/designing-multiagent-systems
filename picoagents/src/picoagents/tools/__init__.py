@@ -19,11 +19,16 @@ from ._decorator import tool
 from ._memory_tool import MemoryBackend, MemoryTool
 
 try:
-    from ._research_tools import YouTubeCaptionTool, create_research_tools
+    from ._research_tools import (
+        ArxivSearchTool,
+        YouTubeCaptionTool,
+        create_research_tools,
+    )
 
     RESEARCH_TOOLS_AVAILABLE = True
 except ImportError:
     RESEARCH_TOOLS_AVAILABLE = False
+    ArxivSearchTool = None  # type: ignore
     YouTubeCaptionTool = None  # type: ignore
 
 from ._coding_tools import create_coding_tools
@@ -67,6 +72,7 @@ __all__ = [
     "DateTimeTool",
     "JSONParserTool",
     "RegexTool",
+    "ArxivSearchTool",
     "YouTubeCaptionTool",
     "RESEARCH_TOOLS_AVAILABLE",
     # MCP integration

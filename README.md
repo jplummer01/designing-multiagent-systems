@@ -8,7 +8,7 @@ Official code repository for [Designing Multi-Agent Systems: Principles, Pattern
 
 Learn to build effective multi-agent systems from first principles through complete, tested implementations. This repository includes **PicoAgents**—a full-featured multi-agent framework built entirely from scratch for the sole purpose of teaching you how multi-agent systems work. Every component, from agent reasoning loops to orchestration patterns, is implemented with clarity and transparency.
 
-[Buy Digital Edition](https://buy.multiagentbook.com) | [Buy Print - Coming Soon]()
+[Buy Digital Edition](https://buy.multiagentbook.com) | [Paperback on Amazon](https://www.amazon.com/dp/B0G2BCQQJY) | [Hardcover on Amazon](https://www.amazon.com/dp/B0G2F6T2BZ)
 
 ---
 
@@ -278,7 +278,8 @@ Illustrated through real-world case studies (see [YC Analysis workflow](examples
 This repository implements every concept from the book. The book provides the theory, design trade-offs, and production considerations you need to build effective multi-agent systems.
 
 - [Buy Digital Edition](https://buy.multiagentbook.com)
-- Buy Print Edition on Amazon - Coming Soon
+- [Paperback on Amazon](https://www.amazon.com/dp/B0G2BCQQJY)
+- [Hardcover on Amazon](https://www.amazon.com/dp/B0G2F6T2BZ)
 
 ## Questions and Feedback
 
